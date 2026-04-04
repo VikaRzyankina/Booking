@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Здания</title>
+</head>
+<body>
+    <h1>Список зданий</h1>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <ul>
+            {% for category, message in messages %}
+                <li><strong>{{ category }}:</strong> {{ message }}</li>
+            {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+    <a href="{{ url_for('building.new_building') }}">Добавить здание</a>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Город</th>
+                <th>Улица</th>
+                <th>Описание</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for building in buildings %}
+            <tr>
+                <td>{{ building.id }}</td>
+                <td>{{ building.city }}</td>
+                <td>{{ building.street }}</td>
+                <td>{{ building.description or '' }}</td>
+                <td>
+                    <a href="{{ url_for('building.edit_building', id=building.id) }}">Редактировать</a>
+                    <a href="{{ url_for('building.delete_building', id=building.id) }}">Удалить</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

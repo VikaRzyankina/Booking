@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{% if building %}Редактирование{% else %}Новое здание{% endif %}</title>
+</head>
+<body>
+    <h1>{% if building %}Редактирование здания{% else %}Добавление здания{% endif %}</h1>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <ul>
+            {% for category, message in messages %}
+                <li><strong>{{ category }}:</strong> {{ message }}</li>
+            {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+
+    <form method="post">
+        <div>
+            <label>Город:</label>
+            <input type="text" name="city" value="{{ building.city if building else '' }}" required>
+        </div>
+        <div>
+            <label>Улица:</label>
+            <input type="text" name="street" value="{{ building.street if building else '' }}" required>
+        </div>
+        <div>
+            <label>Описание:</label>
+            <textarea name="description">{% if building %}{{ building.description or '' }}{% endif %}</textarea>
+        </div>
+
+        <h2>Часы работы</h2>
+        <table border="1">
+            <thead>
+                <tr>
+                    <th>День недели</th>
+                    <th>Открыто с</th>
+                    <th>До</th>
+                    <th>Выходной</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for day in days %}
+                {% set wh = working_hours.get(day, {}) %}
+                <tr>
+                    <td>{{ day }}</td>
+                    <td>
+                        <input type="time" name="{{ day }}_open_time"
+                               value="{{ wh.open_time if wh and not wh.is_closed else '' }}"
+                               {% if wh and wh.is_closed %}disabled{% endif %}>
+                    </td>
+                    <td>
+                        <input type="time" name="{{ day }}_close_time"
+                               value="{{ wh.close_time if wh and not wh.is_closed else '' }}"
+                               {% if wh and wh.is_closed %}disabled{% endif %}>
+                    </td>
+                    <td>
+                        <input type="checkbox" name="{{ day }}_is_closed"
+                               {% if wh and wh.is_closed %}checked{% endif %}
+                               onclick="toggleTimeFields(this, '{{ day }}')">
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <button type="submit">Сохранить</button>
+        <a href="{{ url_for('building.browse') }}">Отмена</a>
+    </form>
+
+    <script>
+        function toggleTimeFields(checkbox, day) {
+            var openField = document.querySelector('input[name="' + day + '_open_time"]');
+            var closeField = document.querySelector('input[name="' + day + '_close_time"]');
+            if (checkbox.checked) {
+                openField.disabled = true;
+                closeField.disabled = true;
+                openField.value = '';
+                closeField.value = '';
+            } else {
+                openField.disabled = false;
+                closeField.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
