@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
-from db import get_db_cursor
+from app.db import get_db_cursor
 
 building_bp = Blueprint('building', __name__, url_prefix='/')
 

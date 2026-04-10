@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
 from werkzeug.security import generate_password_hash, check_password_hash
-from db import get_db_cursor
+from app.db import get_db_cursor
 
 user_bp = Blueprint('user', __name__, url_prefix='/')
 
