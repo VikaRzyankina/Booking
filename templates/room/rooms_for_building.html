@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Комнаты здания {{ building.city }}, {{ building.street }}</title>
+</head>
+<body>
+    <h1>Комнаты здания: {{ building.city }}, {{ building.street }}</h1>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <ul>
+            {% for category, message in messages %}
+                <li><strong>{{ category }}:</strong> {{ message }}</li>
+            {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+
+    <p>
+        <a href="{{ url_for('building.browse_buildings') }}">← Назад к списку зданий</a>
+        &nbsp;|&nbsp;
+        <a href="{{ url_for('room.new_room', building_id=building.id) }}">+ Добавить комнату</a>
+    </p>
+
+    <table border="1">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Доступна для бронирования</th>
+                <th>Площадь</th>
+                <th>Вместимость</th>
+                <th>Цена</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for room in rooms %}
+            <tr>
+                <td>{{ room.id }}</td>
+                <td>{{ "Да" if room.is_available_for_booking else "Нет" }}</td>
+                <td>{{ room.size or '' }}</td>
+                <td>{{ room.capacity }}</td>
+                <td>{{ room.price }}</td>
+                <td>
+                    <a href="{{ url_for('room.edit_room', id=room.id) }}">Редактировать</a>
+                    <form action="{{ url_for('room.delete_room', id=room.id) }}" method="post" style="display:inline;">
+                        <button type="submit" onclick="return confirm('Удалить комнату?')">Удалить</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6">Нет комнат для этого здания.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

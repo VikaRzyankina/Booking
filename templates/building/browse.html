@@ -35,6 +35,7 @@
                 <td>
                     <a href="{{ url_for('building.edit_building', id=building.id) }}">Редактировать</a>
                     <a href="{{ url_for('building.delete_building', id=building.id) }}">Удалить</a>
+                    <a href="{{ url_for('room.rooms_for_building', building_id=building.id) }}">Комнаты</a>
                 </td>
             </tr>
             {% endfor %}

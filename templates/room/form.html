@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{% if room %}Редактирование комнаты{% else %}Новая комната{% endif %}</title>
+</head>
+<body>
+    <h1>{% if room %}Редактирование комнаты{% else %}Новая комната{% endif %}</h1>
+    <p>Здание: {{ building.city }}, {{ building.street }}</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <ul>
+            {% for category, message in messages %}
+                <li><strong>{{ category }}:</strong> {{ message }}</li>
+            {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+
+    <form method="post">
+        <label>
+            <input type="checkbox" name="is_available" {% if room and room.is_available_for_booking %}checked{% endif %}>
+            Доступна для бронирования
+        </label><br><br>
+
+        <label>Площадь: <input type="number" step="any" name="size" value="{{ room.size if room else '' }}"></label><br><br>
+
+        <label>Вместимость: <input type="number" name="capacity" value="{{ room.capacity if room else '' }}" required></label><br><br>
+
+        <label>Цена: <input type="number" step="any" name="price" value="{{ room.price if room else '' }}" required></label><br><br>
+
+        <button type="submit">Сохранить</button>
+        <a href="{{ url_for('room.rooms_for_building', building_id=building.id) }}">Отмена</a>
+    </form>
+</body>
+</html>
