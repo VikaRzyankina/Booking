@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from app.db import get_db_cursor
 
 building_bp = Blueprint('building', __name__, url_prefix='/')
@@ -73,9 +73,35 @@ def save_building_with_hours(cur, building_id, city, street, description, form_d
 
 @building_bp.route('/browse')
 def browse():
+    user_id = session.get('user_id', 2)
+
     with get_db_cursor() as cur:
-        cur.execute("SELECT id, city, street, description FROM buildings ORDER BY id")
+        cur.execute("""
+            WITH global_perm AS (
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM user_permissions
+                    WHERE user_id = %s
+                      AND permission = 'VIEW'
+                      AND building_id IS NULL
+                      AND room_id IS NULL
+                ) AS has_global
+            )
+            SELECT id, city, street, description
+            FROM buildings
+            WHERE (SELECT has_global FROM global_perm)
+               OR id IN (
+                    SELECT building_id
+                    FROM user_permissions
+                    WHERE user_id = %s
+                      AND permission = 'VIEW'
+                      AND building_id IS NOT NULL
+                      AND room_id IS NULL
+            )
+            ORDER BY id
+        """, (user_id, user_id))
         buildings = cur.fetchall()
+
     return render_template('building/browse.html', buildings=buildings)
 
 
