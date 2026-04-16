@@ -1,9 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
-from app.db import get_db_cursor
+from app.db import get_db_cursor, DAYS
 
 building_bp = Blueprint('building', __name__, url_prefix='/')
-
-DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 
 def get_building(building_id):

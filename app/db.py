@@ -10,6 +10,8 @@ DB_CONFIG = {
     'password': '1234561'
 }
 
+DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
 
 def get_db_connection():
     return psycopg2.connect(**DB_CONFIG)
