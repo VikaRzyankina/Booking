@@ -4,15 +4,7 @@
     <title>Личный кабинет</title>
 </head>
 <body>
-    {% with messages = get_flashed_messages() %}
-        {% if messages %}
-            <ul>
-            {% for message in messages %}
-                <li style="color: green;">{{ message }}</li>
-            {% endfor %}
-            </ul>
-        {% endif %}
-    {% endwith %}
+    {% from 'flash_macro.html' import show_flashes %} {{ show_flashes() }}
 
     <h1>Добро пожаловать, {{ full_name }}!</h1>
     <p><strong>Телефон:</strong> {{ phone }}</p>

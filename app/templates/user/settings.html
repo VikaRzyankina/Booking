@@ -5,16 +5,7 @@
 </head>
 <body>
     <h1>Настройки профиля</h1>
-
-    {% with messages = get_flashed_messages() %}
-        {% if messages %}
-            <ul>
-            {% for message in messages %}
-                <li style="color: green;">{{ message }}</li>
-            {% endfor %}
-            </ul>
-        {% endif %}
-    {% endwith %}
+    {% from 'flash_macro.html' import show_flashes %} {{ show_flashes() }}
 
     <form method="POST">
         <h2>Смена пароля</h2>

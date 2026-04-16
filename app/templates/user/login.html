@@ -5,15 +5,8 @@
 </head>
 <body>
     <h1>Вход</h1>
-    {% with messages = get_flashed_messages() %}
-        {% if messages %}
-            <ul style="color: red;">
-                {% for message in messages %}
-                    <li>{{ message }}</li>
-                {% endfor %}
-            </ul>
-        {% endif %}
-    {% endwith %}
+    {% from 'flash_macro.html' import show_flashes %} {{ show_flashes() }}
+
     <form method="post">
         <label>Логин:</label><br>
         <input type="text" name="login" required><br><br>

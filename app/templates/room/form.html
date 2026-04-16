@@ -6,16 +6,7 @@
 <body>
     <h1>{% if room %}Редактирование комнаты{% else %}Новая комната{% endif %}</h1>
     <p>Здание: {{ building.city }}, {{ building.street }}</p>
-
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            <ul>
-            {% for category, message in messages %}
-                <li><strong>{{ category }}:</strong> {{ message }}</li>
-            {% endfor %}
-            </ul>
-        {% endif %}
-    {% endwith %}
+    {% from 'flash_macro.html' import show_flashes %} {{ show_flashes() }}
 
     <form method="post">
         <label>

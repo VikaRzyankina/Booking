@@ -5,15 +5,8 @@
 </head>
 <body>
     <h1>Список зданий</h1>
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            <ul>
-            {% for category, message in messages %}
-                <li><strong>{{ category }}:</strong> {{ message }}</li>
-            {% endfor %}
-            </ul>
-        {% endif %}
-    {% endwith %}
+    {% from 'flash_macro.html' import show_flashes %} {{ show_flashes() }}
+
     <a href="{{ url_for('building.new_building') }}">Добавить здание</a>
     <table border="1">
         <thead>

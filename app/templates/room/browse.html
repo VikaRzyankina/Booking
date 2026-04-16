@@ -5,16 +5,7 @@
 </head>
 <body>
     <h1>Комнаты здания: {{ building.city }}, {{ building.street }}</h1>
-
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            <ul>
-            {% for category, message in messages %}
-                <li><strong>{{ category }}:</strong> {{ message }}</li>
-            {% endfor %}
-            </ul>
-        {% endif %}
-    {% endwith %}
+    {% from 'flash_macro.html' import show_flashes %} {{ show_flashes() }}
 
     <p>
         <a href="{{ url_for('building.browse') }}">← Назад к списку зданий</a>
