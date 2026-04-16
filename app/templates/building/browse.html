@@ -1,14 +1,19 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-    <title>Здания</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Список зданий</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <h1>Список зданий</h1>
-    {% from 'flash_macro.html' import show_flashes %} {{ show_flashes() }}
+    {% from 'flash_macro.html' import show_flashes %}
+    {{ show_flashes() }}
 
-    <a href="{{ url_for('building.new_building') }}">Добавить здание</a>
-    <table border="1">
+    <a href="{{ url_for('building.new_building') }}" class="add-link">+ Добавить здание</a>
+
+    <table>
         <thead>
             <tr>
                 <th>Город</th>
@@ -23,12 +28,12 @@
                 <td>{{ building.city }}</td>
                 <td>{{ building.street }}</td>
                 <td>{{ building.description or '' }}</td>
-                <td>
-                    <a href="{{ url_for('building.edit_building', id=building.id) }}">Редактировать</a>
-                    <form action="{{ url_for('building.delete_building', id=building.id) }}" method="post" style="display:inline;">
-                        <button type="submit" onclick="return confirm('Удалить здание?')">Удалить</button>
-                    </form>
+                <td class="action-links">
                     <a href="{{ url_for('room.browse', building_id=building.id) }}">Комнаты</a>
+                    <a href="{{ url_for('building.edit_building', id=building.id) }}">Редактировать</a>
+                    <form action="{{ url_for('building.delete_building', id=building.id) }}" method="post" class="inline-form">
+                        <button type="submit" onclick="return confirm('Удалить здание?')" class="delete-btn">Удалить</button>
+                    </form>
                 </td>
             </tr>
             {% endfor %}

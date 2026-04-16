@@ -1,28 +1,32 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% if building %}Редактирование{% else %}Новое здание{% endif %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <h1>{% if building %}Редактирование здания{% else %}Добавление здания{% endif %}</h1>
-    {% from 'flash_macro.html' import show_flashes %} {{ show_flashes() }}
+    {% from 'flash_macro.html' import show_flashes %}
+    {{ show_flashes() }}
 
-    <form method="post">
-        <div>
-            <label>Город:</label>
-            <input type="text" name="city" value="{{ building.city if building else '' }}" required>
+    <form method="post" class="generic-form">
+        <div class="form-group">
+            <label for="city">Город:</label>
+            <input type="text" id="city" name="city" value="{{ building.city if building else '' }}" required>
         </div>
-        <div>
-            <label>Улица:</label>
-            <input type="text" name="street" value="{{ building.street if building else '' }}" required>
+        <div class="form-group">
+            <label for="street">Улица:</label>
+            <input type="text" id="street" name="street" value="{{ building.street if building else '' }}" required>
         </div>
-        <div>
-            <label>Описание:</label>
-            <textarea name="description">{% if building %}{{ building.description or '' }}{% endif %}</textarea>
+        <div class="form-group">
+            <label for="description">Описание:</label>
+            <textarea id="description" name="description" rows="3">{% if building %}{{ building.description or '' }}{% endif %}</textarea>
         </div>
 
         <h2>Часы работы</h2>
-        <table border="1">
+        <table class="hours-table">
             <thead>
                 <tr>
                     <th>День недели</th>
@@ -37,27 +41,32 @@
                 <tr>
                     <td>{{ day }}</td>
                     <td>
-                        <input type="time" name="{{ day }}_open_time"
+                        <input type="time" name="{{ day }}_open_time" class="time-input"
                                value="{{ wh.open_time if wh and not wh.is_closed else '' }}"
                                {% if wh and wh.is_closed %}disabled{% endif %}>
                     </td>
                     <td>
-                        <input type="time" name="{{ day }}_close_time"
+                        <input type="time" name="{{ day }}_close_time" class="time-input"
                                value="{{ wh.close_time if wh and not wh.is_closed else '' }}"
                                {% if wh and wh.is_closed %}disabled{% endif %}>
                     </td>
-                    <td>
-                        <input type="checkbox" name="{{ day }}_is_closed"
-                               {% if wh and wh.is_closed %}checked{% endif %}
-                               onclick="toggleTimeFields(this, '{{ day }}')">
+                    <td class="checkbox-cell">
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="{{ day }}_is_closed"
+                                   {% if wh and wh.is_closed %}checked{% endif %}
+                                   onclick="toggleTimeFields(this, '{{ day }}')">
+                            <span>Выходной</span>
+                        </label>
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
 
-        <button type="submit">Сохранить</button>
-        <a href="{{ url_for('building.browse') }}">Отмена</a>
+        <div class="form-actions">
+            <button type="submit" class="submit-btn">Сохранить</button>
+            <a href="{{ url_for('building.browse') }}" class="cancel-link">Отмена</a>
+        </div>
     </form>
 
     <script>

@@ -1,19 +1,31 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Запрос на бронирование</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <h1>Запрос на бронирование</h1>
-    {% from 'flash_macro.html' import show_flashes %} {{ show_flashes() }}
+    {% from 'flash_macro.html' import show_flashes %}
+    {{ show_flashes() }}
 
-    <form method="post">
-        <h2>Дата и время бронирования</h2>
-        <input type="datetime-local" id="booking_start" name="booking_start">
-        <label>На сколько минут: <input type="number" step="10" id="booking_time" name="booking_time"></label>
+    <form method="post" class="generic-form">
+        <div class="form-group">
+            <label for="booking_start">Дата и время бронирования:</label>
+            <input type="datetime-local" id="booking_start" name="booking_start">
+        </div>
 
-        <button type="submit">Отправить</button>
-        <a href="{{ url_for('building.browse') }}">Отмена</a>
+        <div class="form-group">
+            <label for="booking_time">На сколько минут:</label>
+            <input type="number" step="10" id="booking_time" name="booking_time">
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="submit-btn">Отправить</button>
+            <a href="{{ url_for('building.browse') }}" class="cancel-link">Отмена</a>
+        </div>
     </form>
 </body>
 </html>

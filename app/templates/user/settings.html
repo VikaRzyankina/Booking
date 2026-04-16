@@ -1,43 +1,51 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Настройки профиля</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <h1>Настройки профиля</h1>
-    {% from 'flash_macro.html' import show_flashes %} {{ show_flashes() }}
+    {% from 'flash_macro.html' import show_flashes %}
+    {{ show_flashes() }}
 
-    <form method="POST">
-        <h2>Смена пароля</h2>
-        <div>
-            <label>Текущий пароль:</label><br>
-            <input type="password" name="current_password">
-        </div>
-        <div>
-            <label>Новый пароль:</label><br>
-            <input type="password" name="new_password">
-        </div>
-        <div>
-            <label>Подтверждение нового пароля:</label><br>
-            <input type="password" name="confirm_password">
+    <form method="POST" class="generic-form">
+        <div style="display: flex; gap: 2rem; flex-wrap: wrap;">
+            <div style="flex: 1;">
+                <h2>Смена пароля</h2>
+                <div class="form-group">
+                    <label for="current_password">Текущий пароль:</label>
+                    <input type="password" id="current_password" name="current_password">
+                </div>
+                <div class="form-group">
+                    <label for="new_password">Новый пароль:</label>
+                    <input type="password" id="new_password" name="new_password">
+                </div>
+                <div class="form-group">
+                    <label for="confirm_password">Подтверждение нового пароля:</label>
+                    <input type="password" id="confirm_password" name="confirm_password">
+                </div>
+            </div>
+
+            <div style="flex: 1;">
+                <h2>Изменение личных данных</h2>
+                <div class="form-group">
+                    <label for="full_name">Полное имя:</label>
+                    <input type="text" id="full_name" name="full_name" value="{{ full_name }}" required>
+                </div>
+                <div class="form-group">
+                    <label for="phone">Телефон:</label>
+                    <input type="text" id="phone" name="phone" value="{{ phone }}" required>
+                </div>
+            </div>
         </div>
 
-        <hr>
-
-        <h2>Изменение личных данных</h2>
-        <div>
-            <label>Полное имя:</label><br>
-            <input type="text" name="full_name" value="{{ full_name }}" required>
+        <div class="form-actions" style="margin-top: 2rem;">
+            <button type="submit" class="submit-btn">Сохранить изменения</button>
+            <a href="{{ url_for('user.user_page') }}" class="cancel-link">Отмена</a>
         </div>
-        <div>
-            <label>Телефон:</label><br>
-            <input type="text" name="phone" value="{{ phone }}" required>
-        </div>
-
-        <br>
-        <button type="submit">Сохранить изменения</button>
     </form>
-
-    <p><a href="{{ url_for('user.user_page') }}">← Вернуться в профиль</a></p>
 </body>
 </html>

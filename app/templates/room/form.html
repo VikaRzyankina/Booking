@@ -1,25 +1,44 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% if room %}Редактирование комнаты{% else %}Новая комната{% endif %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <h1>{% if room %}Редактирование комнаты{% else %}Новая комната{% endif %}</h1>
-    <p>Здание: {{ building.city }}, {{ building.street }}</p>
-    {% from 'flash_macro.html' import show_flashes %} {{ show_flashes() }}
+    {% from 'flash_macro.html' import show_flashes %}
+    {{ show_flashes() }}
 
-    <form method="post">
-        <label>
-            <input type="checkbox" name="is_available" {% if room and room.is_available_for_booking %}checked{% endif %}>
-            Доступна для бронирования
-        </label><br><br>
+    <div class="generic-form" style="margin-bottom: 1rem;">
+        <p style="margin-bottom: 0; color: #475569;">
+            <strong>Здание:</strong> {{ building.city }}, {{ building.street }}
+        </p>
+    </div>
 
-        <label>Площадь: <input type="number" step="any" name="size" value="{{ room.size if room else '' }}"></label><br><br>
+    <form method="post" class="generic-form">
+        <div class="form-group">
+            <label class="checkbox-label" style="display: flex; align-items: center; gap: 0.5rem;">
+                <input type="checkbox" name="is_available" {% if room and room.is_available_for_booking %}checked{% endif %}>
+                <span>Доступна для бронирования</span>
+            </label>
+        </div>
 
-        <label>Вместимость: <input type="number" name="capacity" value="{{ room.capacity if room else '' }}" required></label><br><br>
+        <div class="form-group">
+            <label for="size">Площадь:</label>
+            <input type="number" step="any" id="size" name="size" value="{{ room.size if room else '' }}" placeholder="например, 25.5">
+        </div>
 
-        <button type="submit">Сохранить</button>
-        <a href="{{ url_for('room.browse', building_id=building.id) }}">Отмена</a>
+        <div class="form-group">
+            <label for="capacity">Вместимость:</label>
+            <input type="number" id="capacity" name="capacity" value="{{ room.capacity if room else '' }}" required>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="submit-btn">Сохранить</button>
+            <a href="{{ url_for('room.browse', building_id=building.id) }}" class="cancel-link">Отмена</a>
+        </div>
     </form>
 </body>
 </html>

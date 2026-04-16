@@ -1,15 +1,28 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Личный кабинет</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    {% from 'flash_macro.html' import show_flashes %} {{ show_flashes() }}
-
     <h1>Добро пожаловать, {{ full_name }}!</h1>
-    <p><strong>Телефон:</strong> {{ phone }}</p>
-    <p><a href="{{ url_for('building.browse') }}">Места бронирования</a></p>
-    <p><a href="{{ url_for('user.settings') }}">Настройки</a></p>
-    <p><a href="{{ url_for('user.logout') }}">Выйти</a></p>
+    {% from 'flash_macro.html' import show_flashes %}
+    {{ show_flashes() }}
+
+    <div class="nav-links">
+        <a href="{{ url_for('building.browse') }}" class="add-link">Места бронирования</a>
+        <a href="{{ url_for('user.settings') }}" class="add-link">Настройки</a>
+        <form action="{{ url_for('user.logout') }}" method="post" class="inline-form" style="margin-left: auto;">
+            <button type="submit" class="delete-btn">Выйти</button>
+        </form>
+    </div>
+
+    <div class="generic-form" style="margin-bottom: 1.5rem;">
+        <div class="form-group">
+            <strong>Телефон:</strong> {{ phone }}
+        </div>
+    </div>
 </body>
 </html>

@@ -1,19 +1,26 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Комнаты здания {{ building.city }}, {{ building.street }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <h1>Комнаты здания: {{ building.city }}, {{ building.street }}</h1>
-    {% from 'flash_macro.html' import show_flashes %} {{ show_flashes() }}
+    {% from 'flash_macro.html' import show_flashes %}
+    {{ show_flashes() }}
 
-    <p>
-        <a href="{{ url_for('building.browse') }}">← Назад к списку зданий</a>
-        &nbsp;|&nbsp;
-        <a href="{{ url_for('room.new_room', building_id=building.id) }}">+ Добавить комнату</a>
-    </p>
+    <div class="nav-links">
+        <a href="{{ url_for('building.browse') }}" class="back-link">
+            ← Назад к списку зданий
+        </a>
+        <a href="{{ url_for('room.new_room', building_id=building.id) }}" class="add-link">
+            + Добавить комнату
+        </a>
+    </div>
 
-    <table border="1">
+    <table>
         <thead>
             <tr>
                 <th>Доступна для бронирования</th>
@@ -28,17 +35,16 @@
                 <td>{{ "Да" if room.is_available_for_booking else "Нет" }}</td>
                 <td>{{ room.size or '' }}</td>
                 <td>{{ room.capacity }}</td>
-
-                <td>
+                <td class="action-links">
                     <a href="{{ url_for('room.edit_room', id=room.id) }}">Редактировать</a>
-                    <form action="{{ url_for('room.delete_room', id=room.id) }}" method="post" style="display:inline;">
-                        <button type="submit" onclick="return confirm('Удалить комнату?')">Удалить</button>
+                    <form action="{{ url_for('room.delete_room', id=room.id) }}" method="post" class="inline-form">
+                        <button type="submit" onclick="return confirm('Удалить комнату?')" class="delete-btn">Удалить</button>
                     </form>
                 </td>
             </tr>
             {% else %}
             <tr>
-                <td colspan="6">Нет комнат для этого здания.</td>
+                <td colspan="4">Нет комнат для этого здания.</td>
             </tr>
             {% endfor %}
         </tbody>
