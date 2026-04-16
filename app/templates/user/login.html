@@ -1,26 +1,22 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Вход</title>
+    <title>Личный кабинет</title>
 </head>
 <body>
-    <h1>Вход</h1>
     {% with messages = get_flashed_messages() %}
         {% if messages %}
-            <ul style="color: red;">
-                {% for message in messages %}
-                    <li>{{ message }}</li>
-                {% endfor %}
+            <ul>
+            {% for message in messages %}
+                <li style="color: green;">{{ message }}</li>
+            {% endfor %}
             </ul>
         {% endif %}
     {% endwith %}
-    <form method="post">
-        <label>Логин:</label><br>
-        <input type="text" name="login" required><br><br>
-        <label>Пароль:</label><br>
-        <input type="password" name="password" required><br><br>
-        <input type="submit" value="Войти">
-    </form>
-    <p>Нет аккаунта? <a href="{{ url_for('user.register') }}">Зарегистрироваться</a></p>
+
+    <h1>Добро пожаловать, {{ full_name }}!</h1>
+    <p><strong>Телефон:</strong> {{ phone }}</p>
+    <p><a href="{{ url_for('user.settings') }}">Настройки</a></p>
+    <p><a href="{{ url_for('user.logout') }}">Выйти</a></p>
 </body>
 </html>

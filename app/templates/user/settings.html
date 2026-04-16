@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Настройки профиля</title>
+</head>
+<body>
+    <h1>Настройки профиля</h1>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <ul>
+            {% for message in messages %}
+                <li style="color: green;">{{ message }}</li>
+            {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST">
+        <h2>Смена пароля</h2>
+        <div>
+            <label>Текущий пароль:</label><br>
+            <input type="password" name="current_password" required>
+        </div>
+        <div>
+            <label>Новый пароль:</label><br>
+            <input type="password" name="new_password">
+        </div>
+        <div>
+            <label>Подтверждение нового пароля:</label><br>
+            <input type="password" name="confirm_password">
+        </div>
+
+        <hr>
+
+        <h2>Изменение личных данных</h2>
+        <div>
+            <label>Полное имя:</label><br>
+            <input type="text" name="full_name" value="{{ full_name }}" required>
+        </div>
+        <div>
+            <label>Телефон:</label><br>
+            <input type="text" name="phone" value="{{ phone }}" required>
+        </div>
+
+        <br>
+        <button type="submit">Сохранить изменения</button>
+    </form>
+
+    <p><a href="{{ url_for('user.user_page') }}">← Вернуться в профиль</a></p>
+</body>
+</html>
