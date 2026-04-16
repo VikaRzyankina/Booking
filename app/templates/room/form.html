@@ -27,10 +27,8 @@
 
         <label>Вместимость: <input type="number" name="capacity" value="{{ room.capacity if room else '' }}" required></label><br><br>
 
-        <label>Цена: <input type="number" step="any" name="price" value="{{ room.price if room else '' }}" required></label><br><br>
-
         <button type="submit">Сохранить</button>
-        <a href="{{ url_for('room.rooms_for_building', building_id=building.id) }}">Отмена</a>
+        <a href="{{ url_for('room.browse', building_id=building.id) }}">Отмена</a>
     </form>
 </body>
 </html>

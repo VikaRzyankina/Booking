@@ -114,7 +114,7 @@ def new_building():
 
         if not city or not street:
             flash('Город и улица обязательны для заполнения.', 'error')
-            return render_template('building/building_form.html', building=None, days=DAYS, working_hours={})
+            return render_template('building/form.html', building=None, days=DAYS, working_hours={})
 
         try:
             with get_db_cursor(commit=True) as cur:
@@ -123,9 +123,9 @@ def new_building():
             return redirect(url_for('building.browse'))
         except Exception as e:
             flash(f'Ошибка при сохранении: {str(e)}', 'error')
-            return render_template('building/building_form.html', building=None, days=DAYS, working_hours={})
+            return render_template('building/form.html', building=None, days=DAYS, working_hours={})
     else:
-        return render_template('building/building_form.html', building=None, days=DAYS, working_hours={})
+        return render_template('building/form.html', building=None, days=DAYS, working_hours={})
 
 
 @building_bp.route('/buildings/<int:id>/edit', methods=['GET', 'POST'])
@@ -143,7 +143,7 @@ def edit_building(id):
         if not city or not street:
             flash('Город и улица обязательны для заполнения.', 'error')
             current_hours = get_working_hours(id)
-            return render_template('building/building_form.html', building=building, days=DAYS, working_hours=current_hours)
+            return render_template('building/form.html', building=building, days=DAYS, working_hours=current_hours)
 
         try:
             with get_db_cursor(commit=True) as cur:
@@ -153,10 +153,10 @@ def edit_building(id):
         except Exception as e:
             flash(f'Ошибка при сохранении: {str(e)}', 'error')
             current_hours = get_working_hours(id)
-            return render_template('building/building_form.html', building=building, days=DAYS, working_hours=current_hours)
+            return render_template('building/form.html', building=building, days=DAYS, working_hours=current_hours)
     else:
         current_hours = get_working_hours(id)
-        return render_template('building/building_form.html', building=building, days=DAYS, working_hours=current_hours)
+        return render_template('building/form.html', building=building, days=DAYS, working_hours=current_hours)
 
 
 @building_bp.route('/buildings/<int:id>/delete', methods=['GET', 'POST'])

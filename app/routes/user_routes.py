@@ -79,7 +79,7 @@ def user_page():
         flash('Сессия устарела, войдите снова')
         return redirect(url_for('user.login'))
 
-    return render_template('user/user.html', 
+    return render_template('user/profile.html',
                           full_name=user_data['full_name'], 
                           phone=user_data['phone'])
 

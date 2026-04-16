@@ -4,8 +4,8 @@ from app.db import get_db_cursor
 room_bp = Blueprint('room', __name__, url_prefix='/')
 
 
-@room_bp.route('/buildings/<int:building_id>/rooms')
-def rooms_for_building(building_id):
+@room_bp.route('/buildings/<int:building_id>/browse')
+def browse(building_id):
     with get_db_cursor() as cur:
         cur.execute("SELECT id, city, street FROM buildings WHERE id = %s", (building_id,))
         building = cur.fetchone()
@@ -13,14 +13,14 @@ def rooms_for_building(building_id):
             abort(404)
 
         cur.execute("""
-            SELECT id, is_available_for_booking, size, capacity, price
+            SELECT id, is_available_for_booking, size, capacity
             FROM rooms
             WHERE building_id = %s
             ORDER BY id
         """, (building_id,))
         rooms = cur.fetchall()
 
-    return render_template('room/rooms_for_building.html', building=building, rooms=rooms)
+    return render_template('room/browse.html', building=building, rooms=rooms)
 
 
 @room_bp.route('/buildings/<int:building_id>/rooms/new', methods=['GET', 'POST'])
@@ -35,14 +35,11 @@ def new_room(building_id):
             is_available = request.form.get('is_available') == 'on'
             size = request.form.get('size')
             capacity = request.form.get('capacity')
-            price = request.form.get('price')
 
             error = None
             try:
                 if not capacity or int(capacity) <= 0:
                     error = "Вместимость должна быть положительным числом."
-                elif not price or float(price) < 0:
-                    error = "Цена не может быть отрицательной."
                 elif size and float(size) < 0:
                     error = "Размер не может быть отрицательным."
             except ValueError:
@@ -55,11 +52,11 @@ def new_room(building_id):
             try:
                 with get_db_cursor(commit=True) as cur2:
                     cur2.execute("""
-                        INSERT INTO rooms (building_id, is_available_for_booking, size, capacity, price)
-                        VALUES (%s, %s, %s, %s, %s)
-                    """, (building_id, is_available, size, capacity, price))
+                        INSERT INTO rooms (building_id, is_available_for_booking, size, capacity)
+                        VALUES (%s, %s, %s, %s)
+                    """, (building_id, is_available, size, capacity))
                 flash('Комната успешно добавлена.', 'success')
-                return redirect(url_for('room.rooms_for_building', building_id=building_id))
+                return redirect(url_for('room.browse', building_id=building_id))
             except Exception as e:
                 flash(f'Ошибка при добавлении: {e}', 'error')
                 return render_template('room/form.html', building=building, room=None)
@@ -84,14 +81,13 @@ def edit_room(id):
             is_available = request.form.get('is_available') == 'on'
             size = request.form.get('size')
             capacity = request.form.get('capacity')
-            price = request.form.get('price')
+
 
             error = None
             try:
                 if not capacity or int(capacity) <= 0:
                     error = "Вместимость должна быть положительным числом."
-                elif not price or float(price) < 0:
-                    error = "Цена не может быть отрицательной."
+
                 elif size and float(size) < 0:
                     error = "Размер не может быть отрицательным."
             except ValueError:
@@ -105,11 +101,11 @@ def edit_room(id):
                 with get_db_cursor(commit=True) as cur2:
                     cur2.execute("""
                         UPDATE rooms
-                        SET is_available_for_booking = %s, size = %s, capacity = %s, price = %s
+                        SET is_available_for_booking = %s, size = %s, capacity = %s
                         WHERE id = %s
-                    """, (is_available, size, capacity, price, id))
+                    """, (is_available, size, capacity, id))
                 flash('Комната успешно обновлена.', 'success')
-                return redirect(url_for('room.rooms_for_building', building_id=room['building_id']))
+                return redirect(url_for('room.browse', building_id=room['building_id']))
             except Exception as e:
                 flash(f'Ошибка при обновлении: {e}', 'error')
                 return render_template('room/form.html', building=room, room=room)
@@ -130,4 +126,4 @@ def delete_room(id):
         cur.execute("DELETE FROM rooms WHERE id = %s", (id,))
 
     flash('Комната удалена.', 'success')
-    return redirect(url_for('room.rooms_for_building', building_id=building_id))
+    return redirect(url_for('room.browse', building_id=building_id))
