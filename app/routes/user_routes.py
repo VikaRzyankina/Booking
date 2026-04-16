@@ -101,27 +101,24 @@ def settings():
         return redirect(url_for('user.login'))
 
     if request.method == 'POST':
-        cur_pass = request.form.get('current_password', '')
         new_pass = request.form.get('new_password', '')
         confirm = request.form.get('confirm_password', '')
         full_name = request.form.get('full_name', '').strip()
         phone = request.form.get('phone', '').strip()
 
-        # Проверка текущего пароля
-        if not check_password_hash(user['password_hash'], cur_pass):
-            flash('Неверный текущий пароль')
-            return render_template('user/settings.html', full_name=user['full_name'], phone=user['phone'])
-
-        # Смена пароля только если новое поле заполнено
         password_hash = user['password_hash']
         if new_pass:
-            if new_pass == confirm:
-                password_hash = generate_password_hash(new_pass)
-            else:
+            cur_pass = request.form.get('current_password', '')
+            if not check_password_hash(user['password_hash'], cur_pass):
+                flash('Неверный текущий пароль')
+                return render_template('user/settings.html', full_name=user['full_name'], phone=user['phone'])
+
+            if new_pass != confirm:
                 flash('Новый пароль и подтверждение не совпадают')
                 return render_template('user/settings.html', full_name=user['full_name'], phone=user['phone'])
 
-        # Обновление данных
+            password_hash = generate_password_hash(new_pass)
+
         try:
             with get_db_cursor(commit=True) as cur:
                 cur.execute("""
