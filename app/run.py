@@ -3,7 +3,8 @@ import secrets
 from flask import Flask
 from werkzeug.security import generate_password_hash
 
-from permissions import ALL_PERMISSIONS
+from app.routes.booking_routes import booking_bp
+from permissions import ALL_PERMISSIONS, grant_permission
 from routes.building_routes import building_bp
 from routes.room_routes import room_bp
 from routes.user_routes import user_bp
@@ -14,7 +15,7 @@ app.secret_key = 'ОднаждыТутБудетКлюч'
 app.register_blueprint(user_bp)
 app.register_blueprint(building_bp)
 app.register_blueprint(room_bp)
-
+app.register_blueprint(booking_bp)
 
 def initialize_default_users():
     """
@@ -60,7 +61,7 @@ def initialize_default_users():
         else:
             if guest_row['login'] != 'guest':
                 raise ValueError(f"User with id=2 exists but login is '{guest_row['login']}', expected 'guest'")
-
+    grant_permission(1, 2, "VIEW")
 
 if __name__ == '__main__':
     initialize_default_users()

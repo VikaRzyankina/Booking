@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -8,13 +9,14 @@ from app.routes.building_routes import get_working_hours
 
 booking_bp = Blueprint('booking', __name__, url_prefix='/')
 
-MOSCOW_TZ = ZoneInfo('Europe/Moscow')
+TZ = ZoneInfo('Europe/Moscow')
 
 
 def get_building(room_id):
     with get_db_cursor() as cur:
         cur.execute("SELECT building_id FROM rooms WHERE id = %s", (room_id,))
-        return cur.fetchone()
+        row = cur.fetchone()
+        return row[0] if row else None
 
 
 def is_available(building_id, room_id, entry_time, exit_time):
@@ -37,7 +39,7 @@ def is_available(building_id, room_id, entry_time, exit_time):
 
     while current_date <= end_date:
         day_name = DAYS[current_date.weekday()]
-        day_start = datetime.combine(current_date, datetime.min.time(), tzinfo=MOSCOW_TZ)
+        day_start = datetime.combine(current_date, datetime.min.time(), tzinfo=TZ)
         day_end = day_start + one_day
 
         segment_start = max(entry_time, day_start)
@@ -54,11 +56,11 @@ def is_available(building_id, room_id, entry_time, exit_time):
             open_time = day_hours['open_time']
             close_time = day_hours['close_time']
 
-            opening_datetime = datetime.combine(current_date, open_time, tzinfo=MOSCOW_TZ)
+            opening_datetime = datetime.combine(current_date, open_time, tzinfo=TZ)
             if close_time > open_time:
-                closing_datetime = datetime.combine(current_date, close_time, tzinfo=MOSCOW_TZ)
+                closing_datetime = datetime.combine(current_date, close_time, tzinfo=TZ)
             else:
-                closing_datetime = datetime.combine(current_date + one_day, close_time, tzinfo=MOSCOW_TZ)
+                closing_datetime = datetime.combine(current_date + one_day, close_time, tzinfo=TZ)
 
             if segment_start < opening_datetime or segment_end > closing_datetime:
                 return False
@@ -66,7 +68,6 @@ def is_available(building_id, room_id, entry_time, exit_time):
         current_date += one_day
 
     return True
-
 
 
 @booking_bp.route('/booking/<int:room_id>/new', methods=['GET', 'POST'])
@@ -89,7 +90,7 @@ def booking_request(room_id):
             booking_start = datetime.strptime(booking_start_str, '%Y-%m-%dT%H:%M')
             booking_time = int(booking_time_str)
 
-            entry_time = booking_start.replace(tzinfo=MOSCOW_TZ)
+            entry_time = booking_start.replace(tzinfo=TZ)
             exit_time = entry_time + timedelta(minutes=booking_time)
 
             if not is_available(building_id, room_id, entry_time, exit_time):
@@ -114,4 +115,4 @@ def booking_request(room_id):
             flash(f'Ошибка при сохранении бронирования: {e}', 'error')
             return redirect(request.url)
 
-    return render_template('user/profile.html', room_id=room_id)
+    return render_template('booking/form.html', room_id=room_id)

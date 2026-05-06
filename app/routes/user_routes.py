@@ -135,7 +135,7 @@ def settings():
     return render_template('user/settings.html', full_name=user['full_name'], phone=user['phone'])
 
 
-@user_bp.route('/logout')
+@user_bp.route('/logout',methods=['GET', 'POST'])
 def logout():
     session.pop('user_id', None)
     flash('Вы вышли из системы')

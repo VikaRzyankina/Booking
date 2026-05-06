@@ -36,6 +36,7 @@
                 <td>{{ room.size or '' }}</td>
                 <td>{{ room.capacity }}</td>
                 <td class="action-links">
+                   <a href="{{ url_for('booking.booking_request', room_id=room.id) }}">Забронировать</a>
                     <a href="{{ url_for('room.edit_room', id=room.id) }}">Редактировать</a>
                     <form action="{{ url_for('room.delete_room', id=room.id) }}" method="post" class="inline-form">
                         <button type="submit" onclick="return confirm('Удалить комнату?')" class="delete-btn">Удалить</button>
