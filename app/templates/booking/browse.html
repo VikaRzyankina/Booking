@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Заявки на бронирование</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>Заявки на бронирование</h1>
+    {% from 'flash_macro.html' import show_flashes %}
+    {{ show_flashes() }}
+
+    <a href="{{ url_for('user.user_page') }}" class="back-link">
+        ← Назад в профиль
+    </a>
+
+    {% if requests %}
+    <table>
+        <thead>
+            <tr>
+                <th>Заявитель</th>
+                <th>Адрес</th>
+                <th>Комната</th>
+                <th>Дата и время начала</th>
+                <th>Дата и время окончания</th>
+                <th>Назначение</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for request in requests %}
+            <tr>
+                <td>
+                    {{ request.booking_user_full_name or request.booking_user_login }}<br>
+                    <small>({{ request.booking_user_login }})</small>
+                </td>
+                <td>{{ request.city }}, {{ request.street }}</td>
+                <td>Комната №{{ request.room_id }}</td>
+                <td>{{ request.entry_time.strftime('%d.%m.%Y %H:%M') if request.entry_time else '' }}</td>
+                <td>{{ request.exit_time.strftime('%d.%m.%Y %H:%M') if request.exit_time else '' }}</td>
+                <td>{{ request.purpose or '' }}</td>
+                <td class="action-links">
+                    <form action="{{ url_for('booking.accept_request', id=request.id) }}" method="post" class="inline-form">
+                        <button type="submit" onclick="return confirm('Подтвердить заявку на бронирование?')" class="accept-btn">✓ Подтвердить</button>
+                    </form>
+                    <form action="{{ url_for('booking.deny_request', id=request.id) }}" method="post" class="inline-form">
+                        <button type="submit" onclick="return confirm('Отклонить заявку на бронирование?')" class="deny-btn">✗ Отклонить</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>Нет активных заявок на бронирование.</p>
+    {% endif %}
+</body>
+</html>

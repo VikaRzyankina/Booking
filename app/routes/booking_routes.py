@@ -70,6 +70,53 @@ def is_available(building_id, room_id, entry_time, exit_time):
     return True
 
 
+@booking_bp.route('/bookings/browse')
+def browse():
+    user_id = session.get('user_id', 2)
+    with get_db_cursor() as cur:
+        cur.execute("""
+            SELECT
+                bookings.*,
+                buildings.city,
+                buildings.street,
+                users.login AS booking_user_login,
+                users.full_name AS booking_user_full_name
+            FROM bookings
+            INNER JOIN rooms ON rooms.id = bookings.room_id
+            INNER JOIN buildings ON buildings.id = rooms.building_id
+            INNER JOIN users ON users.id = bookings.booking_user_id
+            WHERE bookings.is_accepted IS NULL
+                AND EXISTS (
+                    SELECT 1
+                    FROM user_permissions
+                    WHERE user_permissions.user_id = %s
+                        AND user_permissions.permission = 'MANAGE_BOOKING_REQUESTS'
+                        AND (
+                            user_permissions.building_id IS NULL
+                            OR (
+                                user_permissions.building_id = rooms.building_id
+                                AND (user_permissions.room_id IS NULL OR user_permissions.room_id = bookings.room_id)
+                            )
+                        )
+                )
+            ORDER BY
+                buildings.id,
+                bookings.entry_time;
+        """, (user_id,))
+        requests = cur.fetchall()
+    return render_template('booking/browse.html', requests=requests)
+
+
+@booking_bp.route('/booking/<int:id>/accept', methods=['GET', 'POST'])
+def accept_request(id):
+    flash('TODO')
+
+
+@booking_bp.route('/booking/<int:id>/deny', methods=['GET', 'POST'])
+def deny_request(id):
+    flash('TODO')
+
+
 @booking_bp.route('/booking/<int:room_id>/new', methods=['GET', 'POST'])
 def booking_request(room_id):
     building_id = get_building(room_id)
