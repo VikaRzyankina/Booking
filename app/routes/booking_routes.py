@@ -69,6 +69,45 @@ def is_available(building_id, room_id, entry_time, exit_time):
     return True
 
 
+@booking_bp.route('/booking/my')
+def my_bookings():
+    user_id = session.get('user_id')
+    if not user_id:
+        flash('Необходима авторизация.', 'error')
+        return redirect(url_for('auth.login'))
+
+    now = datetime.now(TZ)
+    with get_db_cursor() as cur:
+        cur.execute("""
+            SELECT
+                b.id,
+                b.room_id,
+                b.entry_time,
+                b.exit_time,
+                b.is_accepted,
+                b.deny_reason,
+                b.is_automatic,
+                bld.city,
+                bld.street
+            FROM bookings b
+            JOIN rooms r ON r.id = b.room_id
+            JOIN buildings bld ON bld.id = r.building_id
+            WHERE b.booking_user_id = %s
+            ORDER BY b.entry_time DESC
+        """, (user_id,))
+        bookings = cur.fetchall()
+
+    past = []
+    future = []
+    for b in bookings:
+        if b['exit_time'] <= now:
+            past.append(b)
+        else:
+            future.append(b)
+
+    return render_template('booking/my.html', past_bookings=past, future_bookings=future)
+
+
 @booking_bp.route('/booking/browse')
 def browse():
     user_id = session.get('user_id', 2)
@@ -90,13 +129,8 @@ def browse():
                     FROM user_permissions
                     WHERE user_permissions.user_id = %s
                         AND user_permissions.permission = 'MANAGE_BOOKING_REQUESTS'
-                        AND (
-                            user_permissions.building_id IS NULL
-                            OR (
-                                user_permissions.building_id = rooms.building_id
-                                AND (user_permissions.room_id IS NULL OR user_permissions.room_id = bookings.room_id)
-                            )
-                        )
+                        AND COALESCE(user_permissions.building_id, rooms.building_id) = rooms.building_id
+                        AND COALESCE(user_permissions.room_id, bookings.room_id) = bookings.room_id
                 )
             ORDER BY
                 buildings.id,
@@ -117,8 +151,8 @@ def can_manage_booking(user_id, booking_id):
                 WHERE b.id = %s
                   AND b.is_accepted IS NULL
                   AND up.permission = 'MANAGE_BOOKING_REQUESTS'
-                  AND (up.building_id IS NULL OR up.building_id = r.building_id)
-                  AND (up.room_id IS NULL OR up.room_id = b.room_id)
+                  AND COALESCE(up.building_id, r.building_id) = r.building_id
+                  AND COALESCE(up.room_id, b.room_id) = b.room_id
             )
         """, (user_id, booking_id))
         return cur.fetchone()[0]

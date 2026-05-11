@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мои заявки на бронирование</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>Мои заявки на бронирование</h1>
+
+    {% from 'flash_macro.html' import show_flashes %}
+    {{ show_flashes() }}
+
+    <a href="{{ url_for('user.user_page') }}" class="back-link">
+        ← Назад в профиль
+    </a>
+
+    <h2>Предстоящие и текущие</h2>
+    {% if future_bookings %}
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Здание</th>
+                <th>Комната ID</th>
+                <th>Вход</th>
+                <th>Выход</th>
+                <th>Статус</th>
+                <th>Причина отказа</th>
+                <th>Автоматическая</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for b in future_bookings %}
+            <tr>
+                <td>{{ b.id }}</td>
+                <td>{{ b.city }}, {{ b.street }}</td>
+                <td>{{ b.room_id }}</td>
+                <td>{{ b.entry_time.strftime('%Y-%m-%d %H:%M') if b.entry_time else '' }}</td>
+                <td>{{ b.exit_time.strftime('%Y-%m-%d %H:%M') if b.exit_time else '' }}</td>
+                <td>
+                    {% if b.is_accepted is none %}
+                        На рассмотрении
+                    {% elif b.is_accepted %}
+                        Принята
+                    {% else %}
+                        Отклонена
+                    {% endif %}
+                </td>
+                <td>{{ b.deny_reason or '' }}</td>
+                <td>{{ 'Да' if b.is_automatic else 'Нет' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>Нет предстоящих заявок.</p>
+    {% endif %}
+
+    <h2>Прошедшие</h2>
+    {% if past_bookings %}
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Здание</th>
+                <th>Комната ID</th>
+                <th>Вход</th>
+                <th>Выход</th>
+                <th>Статус</th>
+                <th>Причина отказа</th>
+                <th>Автоматическая</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for b in past_bookings %}
+            <tr>
+                <td>{{ b.id }}</td>
+                <td>{{ b.city }}, {{ b.street }}</td>
+                <td>{{ b.room_id }}</td>
+                <td>{{ b.entry_time.strftime('%Y-%m-%d %H:%M') if b.entry_time else '' }}</td>
+                <td>{{ b.exit_time.strftime('%Y-%m-%d %H:%M') if b.exit_time else '' }}</td>
+                <td>
+                    {% if b.is_accepted is none %}
+                        На рассмотрении
+                    {% elif b.is_accepted %}
+                        Принята
+                    {% else %}
+                        Отклонена
+                    {% endif %}
+                </td>
+                <td>{{ b.deny_reason or '' }}</td>
+                <td>{{ 'Да' if b.is_automatic else 'Нет' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>Нет прошедших заявок.</p>
+    {% endif %}
+</body>
+</html>

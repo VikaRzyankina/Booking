@@ -105,6 +105,7 @@ CREATE TABLE IF NOT EXISTS bookings (
     booking_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     manager_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     is_accepted BOOLEAN,
+    deny_reason VARCHAR(255),
     is_automatic BOOLEAN NOT NULL DEFAULT FALSE,
     entry_time TIMESTAMP WITH TIME ZONE NOT NULL,
     exit_time TIMESTAMP WITH TIME ZONE NOT NULL,

@@ -12,7 +12,9 @@
     {{ show_flashes() }}
 
     <div class="nav-links">
+        <a href="{{ url_for('booking.my_bookings') }}" class="add-link">Мои бронирования</a>
         <a href="{{ url_for('building.browse') }}" class="add-link">Места бронирования</a>
+        <a href="{{ url_for('booking.browse') }}" class="add-link">Менеджмент</a>
         <a href="{{ url_for('user.settings') }}" class="add-link">Настройки</a>
         <form action="{{ url_for('user.logout') }}" method="post" class="inline-form" style="margin-left: auto;">
             <button type="submit" class="delete-btn">Выйти</button>
