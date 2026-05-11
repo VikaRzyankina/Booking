@@ -38,8 +38,17 @@
             <tbody>
                 {% for day in days %}
                 {% set wh = working_hours.get(day, {}) %}
+                {% set ru_day = {
+                    'Monday': 'Понедельник',
+                    'Tuesday': 'Вторник',
+                    'Wednesday': 'Среда',
+                    'Thursday': 'Четверг',
+                    'Friday': 'Пятница',
+                    'Saturday': 'Суббота',
+                    'Sunday': 'Воскресенье'
+                }[day] %}
                 <tr>
-                    <td>{{ day }}</td>
+                    <td>{{ ru_day }}</td>
                     <td>
                         <input type="time" name="{{ day }}_open_time" class="time-input"
                                value="{{ wh.open_time if wh and not wh.is_closed else '' }}"
