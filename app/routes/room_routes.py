@@ -33,6 +33,7 @@ def new_room(building_id):
 
         if request.method == 'POST':
             is_available = request.form.get('is_available') == 'on'
+            auto_booking = request.form.get('auto_booking') == 'on'
             size = request.form.get('size')
             capacity = request.form.get('capacity')
 
@@ -52,9 +53,9 @@ def new_room(building_id):
             try:
                 with get_db_cursor(commit=True) as cur2:
                     cur2.execute("""
-                        INSERT INTO rooms (building_id, is_available_for_booking, size, capacity)
-                        VALUES (%s, %s, %s, %s)
-                    """, (building_id, is_available, size, capacity))
+                        INSERT INTO rooms (building_id, is_available_for_booking, auto_booking, size, capacity)
+                        VALUES (%s, %s, %s, %s, %s)
+                    """, (building_id, is_available, auto_booking, size, capacity))
                 flash('Комната успешно добавлена.', 'success')
                 return redirect(url_for('room.browse', building_id=building_id))
             except Exception as e:
@@ -79,9 +80,9 @@ def edit_room(id):
 
         if request.method == 'POST':
             is_available = request.form.get('is_available') == 'on'
+            auto_booking = request.form.get('auto_booking') == 'on'
             size = request.form.get('size')
             capacity = request.form.get('capacity')
-
 
             error = None
             try:
@@ -101,9 +102,9 @@ def edit_room(id):
                 with get_db_cursor(commit=True) as cur2:
                     cur2.execute("""
                         UPDATE rooms
-                        SET is_available_for_booking = %s, size = %s, capacity = %s
+                        SET is_available_for_booking = %s, size = %s, capacity = %s, auto_booking = %s
                         WHERE id = %s
-                    """, (is_available, size, capacity, id))
+                    """, (is_available, size, capacity, auto_booking, id))
                 flash('Комната успешно обновлена.', 'success')
                 return redirect(url_for('room.browse', building_id=room['building_id']))
             except Exception as e:

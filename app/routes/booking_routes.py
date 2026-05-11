@@ -1,4 +1,3 @@
-import logging
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -70,7 +69,7 @@ def is_available(building_id, room_id, entry_time, exit_time):
     return True
 
 
-@booking_bp.route('/bookings/browse')
+@booking_bp.route('/booking/browse')
 def browse():
     user_id = session.get('user_id', 2)
     with get_db_cursor() as cur:
@@ -107,14 +106,82 @@ def browse():
     return render_template('booking/browse.html', requests=requests)
 
 
-@booking_bp.route('/booking/<int:id>/accept', methods=['GET', 'POST'])
+def can_manage_booking(user_id, booking_id):
+    with get_db_cursor() as cur:
+        cur.execute("""
+            SELECT EXISTS (
+                SELECT 1
+                FROM bookings b
+                JOIN rooms r ON r.id = b.room_id
+                JOIN user_permissions up ON up.user_id = %s
+                WHERE b.id = %s
+                  AND b.is_accepted IS NULL
+                  AND up.permission = 'MANAGE_BOOKING_REQUESTS'
+                  AND (up.building_id IS NULL OR up.building_id = r.building_id)
+                  AND (up.room_id IS NULL OR up.room_id = b.room_id)
+            )
+        """, (user_id, booking_id))
+        return cur.fetchone()[0]
+
+
+@booking_bp.route('/booking/<int:id>/accept', methods=['POST'])
 def accept_request(id):
-    flash('TODO')
+    user_id = session.get('user_id')
+    if not user_id:
+        flash('Необходима авторизация.', 'error')
+        return redirect(url_for('auth.login'))
+
+    if not can_manage_booking(user_id, id):
+        flash('У вас нет прав на подтверждение этой заявки.', 'error')
+        return redirect(url_for('booking.browse'))
+
+    try:
+        with get_db_cursor(commit=True) as cur:
+            cur.execute("""
+                UPDATE bookings
+                SET is_accepted = TRUE,
+                    manager_user_id = %s,
+                    deny_reason = NULL
+                WHERE id = %s AND is_accepted IS NULL
+            """, (user_id, id))
+            if cur.rowcount == 0:
+                flash('Заявка уже обработана или не найдена.', 'error')
+            else:
+                flash('Заявка успешно подтверждена.', 'success')
+    except Exception as e:
+        flash(f'Ошибка при подтверждении: {e}', 'error')
+
+    return redirect(url_for('booking.browse'))
 
 
-@booking_bp.route('/booking/<int:id>/deny', methods=['GET', 'POST'])
+@booking_bp.route('/booking/<int:id>/deny', methods=['POST'])
 def deny_request(id):
-    flash('TODO')
+    user_id = session.get('user_id')
+    if not user_id:
+        flash('Необходима авторизация.', 'error')
+        return redirect(url_for('auth.login'))
+
+    if not can_manage_booking(user_id, id):
+        flash('У вас нет прав на отклонение этой заявки.', 'error')
+        return redirect(url_for('booking.browse'))
+
+    reason = request.form.get('reason', '').strip() or None
+    try:
+        with get_db_cursor(commit=True) as cur:
+            cur.execute("""
+                UPDATE bookings
+                SET is_accepted = FALSE,
+                    manager_user_id = %s,
+                    deny_reason = %s
+                WHERE id = %s AND is_accepted IS NULL
+            """, (user_id, reason, id))
+            if cur.rowcount == 0:
+                flash('Заявка уже обработана или не найдена.', 'error')
+            else:
+                flash('Заявка отклонена.', 'success')
+    except Exception as e:
+        flash(f'Ошибка при отклонении: {e}', 'error')
+    return redirect(url_for('booking.browse'))
 
 
 @booking_bp.route('/booking/<int:room_id>/new', methods=['GET', 'POST'])
@@ -148,12 +215,16 @@ def booking_request(room_id):
 
             with get_db_cursor(commit=True) as cur:
                 cur.execute("""
-                    INSERT INTO bookings (room_id, booking_user_id, entry_time, exit_time, is_automatic)
-                    VALUES (%s, %s, %s, %s, %s)
-                """, (room_id, user_id, entry_time, exit_time, False))  # TODO Автоматический приём
+                    INSERT INTO bookings (room_id, booking_user_id, entry_time, exit_time, is_accepted, is_automatic)
+                        SELECT %s, %s, %s, %s,
+                               CASE WHEN auto_booking THEN TRUE ELSE NULL END,
+                               auto_booking
+                        FROM rooms
+                        WHERE id = %s
+                """, (room_id, user_id, entry_time, exit_time, room_id))
 
             flash('Заявка на бронирование успешно создана.', 'success')
-            return redirect(url_for('building.browse'))
+            return redirect(url_for('room.browse', building_id=building_id))
 
         except (ValueError, TypeError) as e:
             flash(f'Ошибка в формате данных: {e}', 'error')

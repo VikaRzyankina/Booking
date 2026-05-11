@@ -26,6 +26,13 @@
         </div>
 
         <div class="form-group">
+            <label class="checkbox-label" style="display: flex; align-items: center; gap: 0.5rem;">
+                <input type="checkbox" name="auto_booking" {% if room and room.auto_booking %}checked{% endif %}>
+                <span>Автоматический приём брони</span>
+            </label>
+        </div>
+
+        <div class="form-group">
             <label for="size">Площадь:</label>
             <input type="number" step="any" id="size" name="size" value="{{ room.size if room else '' }}" placeholder="например, 25.5">
         </div>

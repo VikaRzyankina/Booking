@@ -44,8 +44,9 @@
                     <form action="{{ url_for('booking.accept_request', id=request.id) }}" method="post" class="inline-form">
                         <button type="submit" onclick="return confirm('Подтвердить заявку на бронирование?')" class="accept-btn">✓ Подтвердить</button>
                     </form>
-                    <form action="{{ url_for('booking.deny_request', id=request.id) }}" method="post" class="inline-form">
-                        <button type="submit" onclick="return confirm('Отклонить заявку на бронирование?')" class="deny-btn">✗ Отклонить</button>
+                    <form action="{{ url_for('booking.deny_request', id=request.id) }}" method="post" class="inline-form" id="deny-form-{{ request.id }}">
+                        <input type="hidden" name="reason" id="reason-{{ request.id }}" value="">
+                        <button type="button" onclick="denyWithReason({{ request.id }})" class="deny-btn">✗ Отклонить</button>
                     </form>
                 </td>
             </tr>
@@ -56,4 +57,13 @@
     <p>Нет активных заявок на бронирование.</p>
     {% endif %}
 </body>
+<script>
+function denyWithReason(bookingId) {
+    let reason = prompt("Введите причину отказа (необязательно):", "");
+    if (reason !== null) {  // нажал OK, даже если пустая строка
+        document.getElementById('reason-' + bookingId).value = reason;
+        document.getElementById('deny-form-' + bookingId).submit();
+    }
+}
+</script>
 </html>
