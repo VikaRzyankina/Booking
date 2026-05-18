@@ -13,7 +13,7 @@ def browse(building_id):
             abort(404)
 
         cur.execute("""
-            SELECT id, is_available_for_booking, size, capacity
+            SELECT id, name, description, is_available_for_booking, size, capacity
             FROM rooms
             WHERE building_id = %s
             ORDER BY id
@@ -32,6 +32,8 @@ def new_room(building_id):
             abort(404)
 
         if request.method == 'POST':
+            name = request.form.get('name', '').strip()
+            description = request.form.get('description', '').strip()
             is_available = request.form.get('is_available') == 'on'
             auto_booking = request.form.get('auto_booking') == 'on'
             size = request.form.get('size')
@@ -39,7 +41,9 @@ def new_room(building_id):
 
             error = None
             try:
-                if not capacity or int(capacity) <= 0:
+                if not name:
+                    error = "Название комнаты обязательно."
+                elif not capacity or int(capacity) <= 0:
                     error = "Вместимость должна быть положительным числом."
                 elif size and float(size) < 0:
                     error = "Размер не может быть отрицательным."
@@ -53,13 +57,16 @@ def new_room(building_id):
             try:
                 with get_db_cursor(commit=True) as cur2:
                     cur2.execute("""
-                        INSERT INTO rooms (building_id, is_available_for_booking, auto_booking, size, capacity)
-                        VALUES (%s, %s, %s, %s, %s)
-                    """, (building_id, is_available, auto_booking, size, capacity))
+                        INSERT INTO rooms (building_id, name, description, is_available_for_booking, auto_booking, size, capacity)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    """, (building_id, name, description, is_available, auto_booking, size, capacity))
                 flash('Комната успешно добавлена.', 'success')
                 return redirect(url_for('room.browse', building_id=building_id))
             except Exception as e:
-                flash(f'Ошибка при добавлении: {e}', 'error')
+                if 'unique constraint' in str(e).lower() or 'duplicate' in str(e).lower():
+                    flash('Комната с таким названием уже существует в этом здании.', 'error')
+                else:
+                    flash(f'Ошибка при добавлении: {e}', 'error')
                 return render_template('room/form.html', building=building, room=None)
 
     return render_template('room/form.html', building=building, room=None)
@@ -79,6 +86,8 @@ def edit_room(id):
             abort(404)
 
         if request.method == 'POST':
+            name = request.form.get('name', '').strip()
+            description = request.form.get('description', '').strip()
             is_available = request.form.get('is_available') == 'on'
             auto_booking = request.form.get('auto_booking') == 'on'
             size = request.form.get('size')
@@ -86,9 +95,10 @@ def edit_room(id):
 
             error = None
             try:
-                if not capacity or int(capacity) <= 0:
+                if not name:
+                    error = "Название комнаты обязательно."
+                elif not capacity or int(capacity) <= 0:
                     error = "Вместимость должна быть положительным числом."
-
                 elif size and float(size) < 0:
                     error = "Размер не может быть отрицательным."
             except ValueError:
@@ -102,13 +112,17 @@ def edit_room(id):
                 with get_db_cursor(commit=True) as cur2:
                     cur2.execute("""
                         UPDATE rooms
-                        SET is_available_for_booking = %s, size = %s, capacity = %s, auto_booking = %s
+                        SET name = %s, description = %s, is_available_for_booking = %s, 
+                            size = %s, capacity = %s, auto_booking = %s
                         WHERE id = %s
-                    """, (is_available, size, capacity, auto_booking, id))
+                    """, (name, description, is_available, size, capacity, auto_booking, id))
                 flash('Комната успешно обновлена.', 'success')
                 return redirect(url_for('room.browse', building_id=room['building_id']))
             except Exception as e:
-                flash(f'Ошибка при обновлении: {e}', 'error')
+                if 'unique constraint' in str(e).lower() or 'duplicate' in str(e).lower():
+                    flash('Комната с таким названием уже существует в этом здании.', 'error')
+                else:
+                    flash(f'Ошибка при обновлении: {e}', 'error')
                 return render_template('room/form.html', building=room, room=room)
 
     return render_template('room/form.html', building=room, room=room)

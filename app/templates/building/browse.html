@@ -10,38 +10,42 @@
     <h1>Список зданий</h1>
     {% from 'flash_macro.html' import show_flashes %}
     {{ show_flashes() }}
-     <a href="{{ url_for('user.user_page') }}" class="back-link">
-                ← Назад в профиль
-            </a>
-    <a href="{{ url_for('building.new_building') }}" class="add-link">
-        + Добавить здание
-    </a>
 
-    <table>
-        <thead>
-            <tr>
-                <th>Город</th>
-                <th>Улица</th>
-                <th>Описание</th>
-                <th>Действия</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for building in buildings %}
-            <tr>
-                <td>{{ building.city }}</td>
-                <td>{{ building.street }}</td>
-                <td>{{ building.description or '' }}</td>
-                <td class="action-links">
+    <div class="nav-links">
+        <a href="{{ url_for('user.user_page') }}" class="back-link">
+            ← Назад в профиль
+        </a>
+        <a href="{{ url_for('building.new_building') }}" class="add-link">
+            + Добавить здание
+        </a>
+    </div>
+
+    <div class="cards-grid">
+        {% for building in buildings %}
+        <div class="card">
+            <div class="card-image">
+                {% set image_path = '/assets/buildings/' + building.id|string + '.jpeg' %}
+                <img src="{{ image_path }}"
+                     alt="{{ building.city }}, {{ building.street }}"
+                     onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'image-placeholder\'>🏢</div>';">
+            </div>
+            <div class="card-content">
+                <h3 class="card-title">{{ building.city }}, {{ building.street }}</h3>
+                <p class="card-description">{{ building.description or '—' }}</p>
+                <div class="card-actions">
                     <a href="{{ url_for('room.browse', building_id=building.id) }}">Комнаты</a>
                     <a href="{{ url_for('building.edit_building', id=building.id) }}">Редактировать</a>
                     <form action="{{ url_for('building.delete_building', id=building.id) }}" method="post" class="inline-form">
                         <button type="submit" onclick="return confirm('Удалить здание?')" class="delete-btn">Удалить</button>
                     </form>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="card-empty">
+            <p>Нет добавленных зданий.</p>
+        </div>
+        {% endfor %}
+    </div>
 </body>
 </html>

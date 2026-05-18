@@ -5,15 +5,16 @@ def create_tables():
     try:
         sql = """
 -- Таблица зданий
-CREATE TABLE IF NOT EXISTS buildings (
+CREATE TABLE buildings (
     id SERIAL PRIMARY KEY,
     city VARCHAR(255) NOT NULL,
     street VARCHAR(255) NOT NULL,
-    description TEXT
+    description TEXT,
+    UNIQUE(city, street)
 );
 
 -- Перечисление для дней недели
-CREATE TYPE IF NOT EXISTS day_of_week_enum AS ENUM (
+CREATE TYPE day_of_week_enum AS ENUM (
     'Monday',
     'Tuesday',
     'Wednesday',
@@ -24,7 +25,7 @@ CREATE TYPE IF NOT EXISTS day_of_week_enum AS ENUM (
 );
 
 -- Таблица часов работы зданий
-CREATE TABLE IF NOT EXISTS working_hours (
+CREATE TABLE working_hours (
     building_id INTEGER NOT NULL REFERENCES buildings(id) ON DELETE CASCADE,
     day_of_week day_of_week_enum NOT NULL,
     open_time TIME NOT NULL,
@@ -34,35 +35,38 @@ CREATE TABLE IF NOT EXISTS working_hours (
 );
 
 -- Таблица помещений
-CREATE TABLE IF NOT EXISTS rooms (
+CREATE TABLE rooms (
     id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    description VARCHAR(255),
     building_id INTEGER NOT NULL REFERENCES buildings(id) ON DELETE CASCADE,
     is_available_for_booking BOOLEAN NOT NULL DEFAULT TRUE,
     auto_booking BOOLEAN NOT NULL DEFAULT FALSE,
     size NUMERIC(10,2),
-    capacity INTEGER NOT NULL CHECK (capacity > 0)
+    capacity INTEGER NOT NULL CHECK (capacity > 0), -- Предполагаемое кол-во мест
+    UNIQUE(name, building_id)  
 );
 
-CREATE INDEX IF NOT EXISTS idx_rooms_building_id ON rooms(building_id);
+CREATE INDEX idx_rooms_building_id ON rooms(building_id);
 
 -- Справочник удобств
-CREATE TABLE IF NOT EXISTS amenities (
+CREATE TABLE amenities (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) UNIQUE NOT NULL
 );
 
 -- Связь помещений и удобств
-CREATE TABLE IF NOT EXISTS room_amenities (
+CREATE TABLE room_amenities (
     room_id INTEGER NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
     amenity_id INTEGER NOT NULL REFERENCES amenities(id) ON DELETE CASCADE,
     PRIMARY KEY (room_id, amenity_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_room_amenities_room_id ON room_amenities(room_id);
-CREATE INDEX IF NOT EXISTS idx_room_amenities_amenity_id ON room_amenities(amenity_id);
+CREATE INDEX idx_room_amenities_room_id ON room_amenities(room_id);
+CREATE INDEX idx_room_amenities_amenity_id ON room_amenities(amenity_id);
 
 -- Таблица пользователей
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     login VARCHAR(100) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
@@ -71,9 +75,9 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 -- Перечисления для прав
-CREATE TYPE IF NOT EXISTS permission_enum AS ENUM (
+CREATE TYPE permission_enum AS ENUM (
     'VIEW',
-    'CREATE_BUILDING',
+    'CREATE_BUILDING'
     'MANAGE_BUILDING',
     'CREATE_ROOM',
     'MANAGE_ROOM',
@@ -82,7 +86,7 @@ CREATE TYPE IF NOT EXISTS permission_enum AS ENUM (
 );
 
 -- Таблица назначенных прав
-CREATE TABLE IF NOT EXISTS user_permissions (
+CREATE TABLE user_permissions (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     granter_id INTEGER REFERENCES users(id),
@@ -93,13 +97,13 @@ CREATE TABLE IF NOT EXISTS user_permissions (
     CONSTRAINT unique_user_permission_global UNIQUE NULLS NOT DISTINCT (user_id, permission, building_id, room_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_user_permissions_user_id ON user_permissions(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_permissions_permission ON user_permissions(permission);
-CREATE INDEX IF NOT EXISTS idx_user_permissions_building_id ON user_permissions(building_id);
-CREATE INDEX IF NOT EXISTS idx_user_permissions_room_id ON user_permissions(room_id);
+CREATE INDEX idx_user_permissions_user_id ON user_permissions(user_id);
+CREATE INDEX idx_user_permissions_permission ON user_permissions(permission);
+CREATE INDEX idx_user_permissions_building_id ON user_permissions(building_id);
+CREATE INDEX idx_user_permissions_room_id ON user_permissions(room_id);
 
 -- Таблица бронирований
-CREATE TABLE IF NOT EXISTS bookings (
+CREATE TABLE bookings (
     id SERIAL PRIMARY KEY,
     room_id INTEGER NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
     booking_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -111,10 +115,10 @@ CREATE TABLE IF NOT EXISTS bookings (
     exit_time TIMESTAMP WITH TIME ZONE NOT NULL,
     CHECK (entry_time < exit_time)
 );
-CREATE INDEX IF NOT EXISTS idx_bookings_room_id ON bookings(room_id);
-CREATE INDEX IF NOT EXISTS idx_bookings_booking_user_id ON bookings(booking_user_id);
-CREATE INDEX IF NOT EXISTS idx_bookings_manager_user_id ON bookings(manager_user_id);
-CREATE INDEX IF NOT EXISTS idx_bookings_entry_exit ON bookings(entry_time, exit_time);
+CREATE INDEX idx_bookings_room_id ON bookings(room_id);
+CREATE INDEX idx_bookings_booking_user_id ON bookings(booking_user_id);
+CREATE INDEX idx_bookings_manager_user_id ON bookings(manager_user_id);
+CREATE INDEX idx_bookings_entry_exit ON bookings(entry_time, exit_time);
         """
         with get_db_cursor(commit=True) as cur:
             cur.execute(sql)

@@ -237,3 +237,141 @@ button:hover {
     align-items: center;
     margin-bottom: 1.5rem;
 }
+
+.cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+.card {
+    background: white;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+}
+
+.card-image {
+    width: 100%;
+    height: 180px;
+    background: #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.card-image .image-placeholder {
+    font-size: 3rem;
+    color: #94a3b8;
+}
+
+.card-content {
+    padding: 1rem;
+}
+
+.card-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0 0 0.5rem 0;
+    color: #0f172a;
+}
+
+.card-description {
+    font-size: 0.9rem;
+    color: #475569;
+    margin: 0 0 0.75rem 0;
+    line-height: 1.4;
+}
+
+.card-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin: 0.75rem 0;
+    font-size: 0.85rem;
+}
+
+.card-detail {
+    background: #f1f5f9;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    color: #475569;
+}
+
+.card-status {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin-bottom: 0.75rem;
+}
+
+.card-status.status-positive {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.card-status.status-negative {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.card-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e2e8f0;
+}
+
+.card-actions a,
+.card-actions button:not(.delete-btn) {
+    color: #3b82f6;
+    text-decoration: none;
+    font-size: 0.85rem;
+}
+
+.card-actions a:hover,
+.card-actions button:not(.delete-btn):hover {
+    text-decoration: underline;
+}
+
+.card-actions .delete-btn {
+    color: #ef4444;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font: inherit;
+    padding: 0;
+    font-weight: 500;
+    font-size: 0.85rem;
+}
+
+.card-actions .delete-btn:hover {
+    color: #dc2626;
+    text-decoration: underline;
+}
+
+.card-empty {
+    grid-column: 1/-1;
+    text-align: center;
+    padding: 2rem;
+    background: white;
+    border-radius: 0.75rem;
+    color: #64748b;
+}

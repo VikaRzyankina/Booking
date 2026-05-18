@@ -20,35 +20,45 @@
         </a>
     </div>
 
-    <table>
-        <thead>
-            <tr>
-                <th>Доступна для бронирования</th>
-                <th>Площадь</th>
-                <th>Вместимость</th>
-                <th>Действия</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for room in rooms %}
-            <tr>
-                <td>{{ "Да" if room.is_available_for_booking else "Нет" }}</td>
-                <td>{{ room.size or '' }}</td>
-                <td>{{ room.capacity }}</td>
-                <td class="action-links">
-                   <a href="{{ url_for('booking.booking_request', room_id=room.id) }}">Забронировать</a>
+    <div class="cards-grid">
+        {% for room in rooms %}
+        <div class="card">
+            <div class="card-image">
+                {% set image_path = '/assets/rooms/' + room.id|string + '.jpeg' %}
+                <img src="{{ image_path }}"
+                     alt="{{ room.name }}"
+                     onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'image-placeholder\'>🏢</div>';">
+            </div>
+            <div class="card-content">
+                <h3 class="card-title">{{ room.name }}</h3>
+                <div class="card-status {% if room.is_available_for_booking %}status-positive{% else %}status-negative{% endif %}">
+                    {{ "Доступна" if room.is_available_for_booking else "Недоступна" }}
+                </div>
+                <p class="card-description">{{ room.description or '—' }}</p>
+                <div class="card-details">
+                    {% if room.size %}
+                    <span class="card-detail">📐 {{ room.size }} м²</span>
+                    {% endif %}
+                    <span class="card-detail">👥 {{ room.capacity }} мест</span>
+                </div>
+                <div class="card-actions">
+                    {% if room.is_available_for_booking %}
+                        <a href="{{ url_for('booking.booking_request', room_id=room.id) }}">Забронировать</a>
+                    {% else %}
+                        <span class="disabled-link" style="color: #94a3b8;">Забронировать</span>
+                    {% endif %}
                     <a href="{{ url_for('room.edit_room', id=room.id) }}">Редактировать</a>
                     <form action="{{ url_for('room.delete_room', id=room.id) }}" method="post" class="inline-form">
-                        <button type="submit" onclick="return confirm('Удалить комнату?')" class="delete-btn">Удалить</button>
+                        <button type="submit" onclick="return confirm('Удалить комнату {{ room.name }}?')" class="delete-btn">Удалить</button>
                     </form>
-                </td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="4">Нет комнат для этого здания.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="card-empty">
+            <p>Нет комнат для этого здания.</p>
+        </div>
+        {% endfor %}
+    </div>
 </body>
 </html>

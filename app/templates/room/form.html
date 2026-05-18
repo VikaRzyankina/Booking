@@ -19,6 +19,20 @@
 
     <form method="post" class="generic-form">
         <div class="form-group">
+            <label for="name">Название комнаты <span style="color: #e53e3e;">*</span>:</label>
+            <input type="text" id="name" name="name" value="{{ room.name if room and room.name else '' }}" required maxlength="100" placeholder="например, 'Конференц-зал' или 'Переговорная А'">
+            {% if room %}
+            <small style="color: #718096; display: block; margin-top: 0.25rem;">Уникальное название в пределах здания</small>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            <label for="description">Описание:</label>
+            <textarea id="description" name="description" rows="3" maxlength="255" placeholder="Дополнительная информация о комнате...">{{ room.description if room and room.description else '' }}</textarea>
+            <small style="color: #718096; display: block; margin-top: 0.25rem;">Необязательное поле. До 255 символов.</small>
+        </div>
+
+        <div class="form-group">
             <label class="checkbox-label" style="display: flex; align-items: center; gap: 0.5rem;">
                 <input type="checkbox" name="is_available" {% if room and room.is_available_for_booking %}checked{% endif %}>
                 <span>Доступна для бронирования</span>
@@ -33,18 +47,19 @@
         </div>
 
         <div class="form-group">
-            <label for="size">Площадь:</label>
+            <label for="size">Площадь (м²):</label>
             <input type="number" step="any" id="size" name="size" value="{{ room.size if room else '' }}" placeholder="например, 25.5">
         </div>
 
         <div class="form-group">
-            <label for="capacity">Вместимость:</label>
-            <input type="number" id="capacity" name="capacity" value="{{ room.capacity if room else '' }}" required>
+            <label for="capacity">Вместимость (человек) <span style="color: #e53e3e;">*</span>:</label>
+            <input type="number" id="capacity" name="capacity" value="{{ room.capacity if room else '' }}" required min="1" placeholder="положительное число">
         </div>
 
         <div class="form-actions">
             <button type="submit" class="submit-btn">Сохранить</button>
-            <a href="{{ url_for('room.browse', building_id=room.building_id) }}" class="cancel-link">Отмена</a>
+            <a href="{{ url_for('room.browse', building_id=room.building_id if room else building.id) }}"
+               class="cancel-link">Отмена</a>
         </div>
     </form>
 </body>
