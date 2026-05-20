@@ -24,7 +24,7 @@
         {% for room in rooms %}
         <div class="card">
             <div class="card-image">
-                {% set image_path = '/assets/rooms/' + room.id|string + '.jpeg' %}
+                {% set image_path = '/static/assets/rooms/' + room.id|string + '.jpeg' %}
                 <img src="{{ image_path }}"
                      alt="{{ room.name }}"
                      onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'image-placeholder\'>🏢</div>';">

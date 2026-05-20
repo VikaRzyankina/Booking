@@ -1,4 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+
+from app.assets_manager import MAX_PHOTO_SIZE, allowed_file, save_photo
 from app.db import get_db_cursor, DAYS
 
 building_bp = Blueprint('building', __name__, url_prefix='/')
@@ -114,9 +116,22 @@ def new_building():
             flash('Город и улица обязательны для заполнения.', 'error')
             return render_template('building/form.html', building=None, days=DAYS, working_hours={})
 
+        photo = request.files.get('photo')
+        if photo and photo.filename:
+            if not allowed_file(photo.filename):
+                flash('Недопустимый формат файла. Разрешены JPEG, PNG, WebP.', 'error')
+                return render_template('building/form.html', building=None, days=DAYS, working_hours={})
+            if photo.content_length and photo.content_length > MAX_PHOTO_SIZE:
+                flash(f'Файл слишком большой. Максимальный размер: {MAX_PHOTO_SIZE // (1024*1024)} МБ.', 'error')
+                return render_template('building/form.html', building=None, days=DAYS, working_hours={})
+
         try:
             with get_db_cursor(commit=True) as cur:
-                save_building_with_hours(cur, None, city, street, description, request.form)
+                building_id = save_building_with_hours(cur, None, city, street, description, request.form)
+
+            if photo and photo.filename:
+                save_photo(photo, 'buildings', f'{building_id}.jpeg')
+
             flash('Здание успешно создано.', 'success')
             return redirect(url_for('building.browse'))
         except Exception as e:
@@ -143,9 +158,24 @@ def edit_building(id):
             current_hours = get_working_hours(id)
             return render_template('building/form.html', building=building, days=DAYS, working_hours=current_hours)
 
+        photo = request.files.get('photo')
+        if photo and photo.filename:
+            if not allowed_file(photo.filename):
+                flash('Недопустимый формат файла. Разрешены JPEG, PNG, WebP.', 'error')
+                current_hours = get_working_hours(id)
+                return render_template('building/form.html', building=building, days=DAYS, working_hours=current_hours)
+            if photo.content_length and photo.content_length > MAX_PHOTO_SIZE:
+                flash(f'Файл слишком большой. Максимальный размер: {MAX_PHOTO_SIZE // (1024*1024)} МБ.', 'error')
+                current_hours = get_working_hours(id)
+                return render_template('building/form.html', building=building, days=DAYS, working_hours=current_hours)
+
         try:
             with get_db_cursor(commit=True) as cur:
                 save_building_with_hours(cur, id, city, street, description, request.form)
+
+            if photo and photo.filename:
+                save_photo(photo, 'buildings', f'{id}.jpeg')
+
             flash('Здание успешно обновлено.', 'success')
             return redirect(url_for('building.browse'))
         except Exception as e:

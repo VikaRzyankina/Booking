@@ -17,13 +17,24 @@
         </p>
     </div>
 
-    <form method="post" class="generic-form">
+    <form method="post" class="generic-form" enctype="multipart/form-data">
         <div class="form-group">
             <label for="name">Название комнаты <span style="color: #e53e3e;">*</span>:</label>
             <input type="text" id="name" name="name" value="{{ room.name if room and room.name else '' }}" required maxlength="100" placeholder="например, 'Конференц-зал' или 'Переговорная А'">
             {% if room %}
             <small style="color: #718096; display: block; margin-top: 0.25rem;">Уникальное название в пределах здания</small>
             {% endif %}
+        </div>
+
+        <div class="form-group">
+            <label for="photo">Фото комнаты:</label>
+            {% if room and room.id %}
+            <div style="margin-bottom: 0.5rem;">
+                <img src="{{ url_for('static', filename='assets/rooms/' ~ room.id ~ '.jpeg') }}" alt="Фото комнаты" style="max-width: 300px; max-height: 200px; border: 1px solid #e2e8f0; border-radius: 4px;" onerror="this.style.display='none'">
+            </div>
+            {% endif %}
+            <input type="file" id="photo" name="photo" accept="image/jpeg,image/png,image/webp">
+            <small style="color: #718096; display: block; margin-top: 0.25rem;">Рекомендуемый размер: не более 2 МБ. Поддерживаются форматы JPEG, PNG, WebP. Изображение будет сохранено как JPEG.</small>
         </div>
 
         <div class="form-group">

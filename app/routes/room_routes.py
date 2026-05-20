@@ -1,4 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
+
+from app.assets_manager import save_photo, allowed_file, MAX_PHOTO_SIZE
 from app.db import get_db_cursor
 
 room_bp = Blueprint('room', __name__, url_prefix='/')
@@ -54,12 +56,27 @@ def new_room(building_id):
                 flash(error, 'error')
                 return render_template('room/form.html', building=building, room=None)
 
+            photo = request.files.get('photo')
+            if photo and photo.filename:
+                if not allowed_file(photo.filename):
+                    flash('Недопустимый формат файла. Разрешены JPEG, PNG, WebP.', 'error')
+                    return render_template('room/form.html', building=building, room=None)
+                if photo.content_length and photo.content_length > MAX_PHOTO_SIZE:
+                    flash(f'Файл слишком большой. Максимальный размер: {MAX_PHOTO_SIZE // (1024*1024)} МБ.', 'error')
+                    return render_template('room/form.html', building=building, room=None)
+
             try:
                 with get_db_cursor(commit=True) as cur2:
                     cur2.execute("""
                         INSERT INTO rooms (building_id, name, description, is_available_for_booking, auto_booking, size, capacity)
                         VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        RETURNING id
                     """, (building_id, name, description, is_available, auto_booking, size, capacity))
+                    room_id = cur2.fetchone()['id']
+
+                if photo and photo.filename:
+                    save_photo(photo, 'rooms', f'{room_id}.jpeg')
+
                 flash('Комната успешно добавлена.', 'success')
                 return redirect(url_for('room.browse', building_id=building_id))
             except Exception as e:
@@ -108,6 +125,15 @@ def edit_room(id):
                 flash(error, 'error')
                 return render_template('room/form.html', building=room, room=room)
 
+            photo = request.files.get('photo')
+            if photo and photo.filename:
+                if not allowed_file(photo.filename):
+                    flash('Недопустимый формат файла. Разрешены JPEG, PNG, WebP.', 'error')
+                    return render_template('room/form.html', building=room, room=room)
+                if photo.content_length and photo.content_length > MAX_PHOTO_SIZE:
+                    flash(f'Файл слишком большой. Максимальный размер: {MAX_PHOTO_SIZE // (1024*1024)} МБ.', 'error')
+                    return render_template('room/form.html', building=room, room=room)
+
             try:
                 with get_db_cursor(commit=True) as cur2:
                     cur2.execute("""
@@ -116,6 +142,10 @@ def edit_room(id):
                             size = %s, capacity = %s, auto_booking = %s
                         WHERE id = %s
                     """, (name, description, is_available, size, capacity, auto_booking, id))
+
+                if photo and photo.filename:
+                    save_photo(photo, 'rooms', f'{id}.jpeg')
+
                 flash('Комната успешно обновлена.', 'success')
                 return redirect(url_for('room.browse', building_id=room['building_id']))
             except Exception as e:

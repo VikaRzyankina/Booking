@@ -11,7 +11,7 @@
     {% from 'flash_macro.html' import show_flashes %}
     {{ show_flashes() }}
 
-    <form method="post" class="generic-form">
+    <form method="post" class="generic-form" enctype="multipart/form-data">
         <div class="form-group">
             <label for="city">Город:</label>
             <input type="text" id="city" name="city" value="{{ building.city if building else '' }}" required>
@@ -23,6 +23,17 @@
         <div class="form-group">
             <label for="description">Описание:</label>
             <textarea id="description" name="description" rows="3">{% if building %}{{ building.description or '' }}{% endif %}</textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="photo">Фото здания:</label>
+            {% if building and building.id %}
+            <div style="margin-bottom: 0.5rem;">
+                <img src="{{ url_for('static', filename='assets/buildings/' ~ building.id ~ '.jpeg') }}" alt="Фото здания" style="max-width: 300px; max-height: 200px; border: 1px solid #e2e8f0; border-radius: 4px;" onerror="this.style.display='none'">
+            </div>
+            {% endif %}
+            <input type="file" id="photo" name="photo" accept="image/jpeg,image/png,image/webp">
+            <small style="color: #718096; display: block; margin-top: 0.25rem;">Рекомендуемый размер: не более 2 МБ. Поддерживаются форматы JPEG, PNG, WebP. Изображение будет сохранено как JPEG.</small>
         </div>
 
         <h2>Часы работы</h2>

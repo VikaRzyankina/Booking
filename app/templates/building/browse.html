@@ -24,7 +24,7 @@
         {% for building in buildings %}
         <div class="card">
             <div class="card-image">
-                {% set image_path = '/assets/buildings/' + building.id|string + '.jpeg' %}
+                {% set image_path = '/static/assets/buildings/' + building.id|string + '.jpeg' %}
                 <img src="{{ image_path }}"
                      alt="{{ building.city }}, {{ building.street }}"
                      onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'image-placeholder\'>🏢</div>';">
