@@ -1,0 +1,7 @@
+<div class="star-rating">
+    {% for i in range(10, 0, -1) %}
+        <input type="radio" name="rating" id="rating{{ i }}" value="{{ i }}"
+               {% if user_review and user_review.rating == i %}checked{% endif %}>
+        <label for="rating{{ i }}" title="{{ i }} из 10">★</label>
+    {% endfor %}
+</div>

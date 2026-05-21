@@ -74,6 +74,21 @@ CREATE TABLE users (
     phone VARCHAR(20) UNIQUE NOT NULL
 );
 
+-- Таблица отзывов
+CREATE TABLE reviews (
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    room_id INTEGER NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+    rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 10),
+    review_text VARCHAR(1000),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE,
+    PRIMARY KEY (user_id, room_id)
+);
+
+CREATE INDEX idx_reviews_user_id ON reviews(user_id);
+CREATE INDEX idx_reviews_room_id ON reviews(room_id);
+CREATE INDEX idx_reviews_rating ON reviews(rating);
+
 -- Перечисления для прав
 CREATE TYPE permission_enum AS ENUM (
     'VIEW',

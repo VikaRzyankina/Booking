@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Комната {{ room.name }} — {{ building.city }}, {{ building.street }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='reviews.css') }}">
 </head>
 <body>
     <h1>{{ room.name }}</h1>
@@ -81,6 +82,103 @@
                 </a>
                 {% endif %}
             </div>
+        </div>
+    </div>
+
+    <div class="reviews-section">
+        <h2>Отзывы</h2>
+        {% if average_rating is not none %}
+        <div class="average-rating">
+            <span class="stars-display" style="--rating-width: {{ (average_rating * 10)|round(1) }}%">{{ average_rating }}</span>
+            <span class="average-value">{{ average_rating }} / 10</span>
+        </div>
+        {% else %}
+        <p>Пока нет отзывов.</p>
+        {% endif %}
+
+        {% if user_review and not edit_review %}
+            <div class="review-item own-review">
+                <div class="review-header">
+                    <span class="review-author">Ваш отзыв</span>
+                    <span class="stars-display" style="--rating-width: {{ (user_review.rating * 10)|round(1) }}%">{{ user_review.rating }}</span>
+                </div>
+                {% if user_review.review_text %}
+                <p class="review-text">{{ user_review.review_text }}</p>
+                {% endif %}
+                <div class="review-meta">
+                    <span class="review-date">{{ user_review.created_at.strftime('%d.%m.%Y %H:%M') }}</span>
+                    {% if user_review.updated_at %}
+                    <span class="review-edited">(изменён)</span>
+                    {% endif %}
+                </div>
+                <div class="review-actions">
+                    <a href="{{ url_for('room.view_room', id=room.id, edit_review=1) }}" class="edit-link">Редактировать</a>
+                    <form action="{{ url_for('room.delete_review', id=room.id) }}" method="post" class="inline-form">
+                        <button type="submit" onclick="return confirm('Удалить ваш отзыв?')" class="delete-btn">Удалить</button>
+                    </form>
+                </div>
+            </div>
+        {% elif edit_review %}
+            <div class="review-form edit-review-form">
+                <h3>Редактирование отзыва</h3>
+                <form action="{{ url_for('room.edit_review', id=room.id) }}" method="post">
+                    <div class="form-group">
+                        <label>Оценка:</label>
+                        {% include 'room/star_rating_input.html' with context %}
+                        <input type="hidden" name="rating" value="{{ user_review.rating if user_review else '' }}" class="rating-value">
+                    </div>
+                    <div class="form-group">
+                        <label for="review-text-edit">Текст отзыва:</label>
+                        <textarea id="review-text-edit" name="review_text" maxlength="1000" rows="4">{{ user_review.review_text or '' }}</textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="add-link">Сохранить</button>
+                        <a href="{{ url_for('room.view_room', id=room.id) }}" class="cancel-link">Отмена</a>
+                    </div>
+                </form>
+            </div>
+        {% elif can_review %}
+            <div class="review-form new-review-form">
+                <h3>Оставить отзыв</h3>
+                <form action="{{ url_for('room.create_review', id=room.id) }}" method="post">
+                    <div class="form-group">
+                        <label>Оценка:</label>
+                        {% include 'room/star_rating_input.html' with context %}
+                        <input type="hidden" name="rating" value="" class="rating-value">
+                    </div>
+                    <div class="form-group">
+                        <label for="review-text-new">Текст отзыва:</label>
+                        <textarea id="review-text-new" name="review_text" maxlength="1000" rows="4" placeholder="Поделитесь впечатлениями..."></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="add-link">Оставить отзыв</button>
+                    </div>
+                </form>
+            </div>
+        {% endif %}
+
+        <div class="reviews-list">
+            {% for review in reviews %}
+            <div class="review-item">
+                <div class="review-header">
+                    <span class="review-author">{{ review.user_name }}</span>
+                    <span class="stars-display" style="--rating-width: {{ (review.rating * 10)|round(1) }}%">{{ review.rating }}</span>
+                </div>
+                {% if review.review_text %}
+                <p class="review-text">{{ review.review_text }}</p>
+                {% endif %}
+                <div class="review-meta">
+                    <span class="review-date">{{ review.created_at.strftime('%d.%m.%Y %H:%M') }}</span>
+                    {% if review.updated_at %}
+                    <span class="review-edited">(изменён)</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
+                {% if not user_review and not can_review %}
+                <p>Никто ещё не поделился мнением.</p>
+                {% endif %}
+            {% endfor %}
         </div>
     </div>
 </body>

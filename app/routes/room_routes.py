@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
+from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, session
 
 from app.assets_manager import save_photo, allowed_file, MAX_PHOTO_SIZE
 from app.db import get_db_cursor
@@ -23,39 +23,6 @@ def browse(building_id):
         rooms = cur.fetchall()
 
     return render_template('room/browse.html', building=building, rooms=rooms)
-
-
-@room_bp.route('/rooms/<int:id>/view')
-def view_room(id):
-    with get_db_cursor() as cur:
-        cur.execute("""
-            SELECT r.id, r.name, r.description, r.is_available_for_booking, 
-                   r.auto_booking, r.size, r.capacity, r.building_id,
-                   b.city, b.street
-            FROM rooms r
-            JOIN buildings b ON r.building_id = b.id
-            WHERE r.id = %s
-        """, (id,))
-        room = cur.fetchone()
-        if not room:
-            abort(404)
-
-        cur.execute("""
-            SELECT a.name
-            FROM amenities a
-            JOIN room_amenities ra ON a.id = ra.amenity_id
-            WHERE ra.room_id = %s
-            ORDER BY a.name
-        """, (id,))
-        amenities = cur.fetchall()
-
-    building = {
-        'id': room['building_id'],
-        'city': room['city'],
-        'street': room['street']
-    }
-
-    return render_template('room/view.html', room=room, building=building, amenities=amenities)
 
 
 @room_bp.route('/buildings/<int:building_id>/rooms/new', methods=['GET', 'POST'])
@@ -205,3 +172,176 @@ def delete_room(id):
 
     flash('Комната удалена.', 'success')
     return redirect(url_for('room.browse', building_id=building_id))
+
+@room_bp.route('/rooms/<int:id>')
+def view_room(id):
+    user_id = session.get('user_id')
+    with get_db_cursor() as cur:
+        cur.execute("""
+            SELECT r.*, b.id as building_id, b.city, b.street
+            FROM rooms r
+            JOIN buildings b ON r.building_id = b.id
+            WHERE r.id = %s
+        """, (id,))
+        room = cur.fetchone()
+        if not room:
+            abort(404)
+
+        cur.execute("""
+            SELECT a.name FROM amenities a
+            JOIN room_amenities ra ON a.id = ra.amenity_id
+            WHERE ra.room_id = %s
+        """, (id,))
+        amenities = [row['name'] for row in cur.fetchall()]
+
+        can_review = False
+        if user_id:
+            cur.execute("""
+                SELECT 1 FROM bookings
+                WHERE room_id = %s
+                  AND booking_user_id = %s
+                  AND is_accepted = TRUE
+                  AND exit_time < NOW()
+                  AND NOT EXISTS (
+                      SELECT 1 FROM reviews
+                      WHERE room_id = bookings.room_id
+                        AND user_id = bookings.booking_user_id
+                  )
+                LIMIT 1
+            """, (id, user_id))
+            can_review = cur.fetchone() is not None
+
+        cur.execute("""
+            SELECT rv.user_id, rv.room_id, rv.rating, rv.review_text,
+                   rv.created_at, rv.updated_at,
+                   u.full_name as user_name
+            FROM reviews rv
+            JOIN users u ON rv.user_id = u.id
+            WHERE rv.room_id = %s
+            ORDER BY rv.created_at DESC
+        """, (id,))
+        all_reviews = cur.fetchall()
+
+        user_review = None
+        other_reviews = []
+        for review in all_reviews:
+            if user_id and review['user_id'] == user_id:
+                user_review = review
+            else:
+                other_reviews.append(review)
+
+        cur.execute("SELECT AVG(rating) as avg_rating FROM reviews WHERE room_id = %s", (id,))
+        avg_row = cur.fetchone()
+        average_rating = round(avg_row['avg_rating'], 1) if avg_row['avg_rating'] else None
+
+        edit_review = request.args.get('edit_review') == '1' and user_review is not None
+
+    return render_template('room/view.html',
+                           room=room,
+                           building=room,
+                           amenities=amenities,
+                           reviews=other_reviews,
+                           user_review=user_review,
+                           can_review=can_review,
+                           average_rating=average_rating,
+                           edit_review=edit_review)
+
+
+@room_bp.route('/rooms/<int:id>/review', methods=['POST'])
+def create_review(id):
+    user_id = session.get('user_id')
+    if not user_id:
+        flash('Необходимо войти в систему.', 'error')
+        return redirect(url_for('room.view_room', id=id))
+
+    rating_str = request.form.get('rating', '').strip()
+    review_text = request.form.get('review_text', '').strip()[:1000]
+
+    try:
+        rating = int(rating_str)
+        if rating < 1 or rating > 10:
+            raise ValueError
+    except ValueError:
+        flash('Оценка должна быть целым числом от 1 до 10.', 'error')
+        return redirect(url_for('room.view_room', id=id))
+
+    with get_db_cursor(commit=True) as cur:
+        cur.execute("""
+            SELECT 1 FROM bookings
+            WHERE room_id = %s
+              AND booking_user_id = %s
+              AND is_accepted = TRUE
+              AND exit_time < NOW()
+              AND NOT EXISTS (
+                  SELECT 1 FROM reviews
+                  WHERE room_id = bookings.room_id
+                    AND user_id = bookings.booking_user_id
+              )
+            LIMIT 1
+        """, (id, user_id))
+        if not cur.fetchone():
+            flash('Вы не можете оставить отзыв (нет завершённой брони или отзыв уже существует).', 'error')
+            return redirect(url_for('room.view_room', id=id))
+
+        cur.execute("SELECT 1 FROM reviews WHERE user_id = %s AND room_id = %s", (user_id, id))
+        if cur.fetchone():
+            flash('Вы уже оставили отзыв на эту комнату.', 'error')
+            return redirect(url_for('room.view_room', id=id))
+
+        cur.execute("""
+            INSERT INTO reviews (user_id, room_id, rating, review_text)
+            VALUES (%s, %s, %s, %s)
+        """, (user_id, id, rating, review_text))
+
+    flash('Отзыв успешно добавлен.', 'success')
+    return redirect(url_for('room.view_room', id=id))
+
+
+@room_bp.route('/rooms/<int:id>/review/edit', methods=['POST'])
+def edit_review(id):
+    user_id = session.get('user_id')
+    if not user_id:
+        flash('Необходимо войти в систему.', 'error')
+        return redirect(url_for('room.view_room', id=id))
+
+    rating_str = request.form.get('rating', '').strip()
+    review_text = request.form.get('review_text', '').strip()[:1000]
+
+    try:
+        rating = int(rating_str)
+        if rating < 1 or rating > 10:
+            raise ValueError
+    except ValueError:
+        flash('Оценка должна быть целым числом от 1 до 10.', 'error')
+        return redirect(url_for('room.view_room', id=id))
+
+    with get_db_cursor(commit=True) as cur:
+        cur.execute("SELECT 1 FROM reviews WHERE user_id = %s AND room_id = %s", (user_id, id))
+        if not cur.fetchone():
+            flash('Отзыв не найден.', 'error')
+            return redirect(url_for('room.view_room', id=id))
+
+        cur.execute("""
+            UPDATE reviews
+            SET rating = %s, review_text = %s, updated_at = NOW()
+            WHERE user_id = %s AND room_id = %s
+        """, (rating, review_text, user_id, id))
+
+    flash('Отзыв обновлён.', 'success')
+    return redirect(url_for('room.view_room', id=id))
+
+
+@room_bp.route('/rooms/<int:id>/review/delete', methods=['POST'])
+def delete_review(id):
+    user_id = session.get('user_id')
+    if not user_id:
+        flash('Необходимо войти в систему.', 'error')
+        return redirect(url_for('room.view_room', id=id))
+
+    with get_db_cursor(commit=True) as cur:
+        cur.execute("DELETE FROM reviews WHERE user_id = %s AND room_id = %s", (user_id, id))
+        if cur.rowcount == 0:
+            flash('Отзыв не найден или уже удалён.', 'error')
+
+    flash('Отзыв удалён.', 'success')
+    return redirect(url_for('room.view_room', id=id))
