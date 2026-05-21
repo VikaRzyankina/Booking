@@ -25,6 +25,39 @@ def browse(building_id):
     return render_template('room/browse.html', building=building, rooms=rooms)
 
 
+@room_bp.route('/rooms/<int:id>/view')
+def view_room(id):
+    with get_db_cursor() as cur:
+        cur.execute("""
+            SELECT r.id, r.name, r.description, r.is_available_for_booking, 
+                   r.auto_booking, r.size, r.capacity, r.building_id,
+                   b.city, b.street
+            FROM rooms r
+            JOIN buildings b ON r.building_id = b.id
+            WHERE r.id = %s
+        """, (id,))
+        room = cur.fetchone()
+        if not room:
+            abort(404)
+
+        cur.execute("""
+            SELECT a.name
+            FROM amenities a
+            JOIN room_amenities ra ON a.id = ra.amenity_id
+            WHERE ra.room_id = %s
+            ORDER BY a.name
+        """, (id,))
+        amenities = cur.fetchall()
+
+    building = {
+        'id': room['building_id'],
+        'city': room['city'],
+        'street': room['street']
+    }
+
+    return render_template('room/view.html', room=room, building=building, amenities=amenities)
+
+
 @room_bp.route('/buildings/<int:building_id>/rooms/new', methods=['GET', 'POST'])
 def new_room(building_id):
     with get_db_cursor() as cur:

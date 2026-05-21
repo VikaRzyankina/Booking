@@ -69,8 +69,11 @@
 
         <div class="form-actions">
             <button type="submit" class="submit-btn">Сохранить</button>
-            <a href="{{ url_for('room.browse', building_id=room.building_id if room else building.id) }}"
-               class="cancel-link">Отмена</a>
+            {% if room %}
+                <a href="{{ url_for('room.view_room', id=room.id) }}" class="cancel-link">Отмена</a>
+            {% else %}
+                <a href="{{ url_for('room.browse', building_id=building.id) }}" class="cancel-link">Отмена</a>
+            {% endif %}
         </div>
     </form>
 </body>

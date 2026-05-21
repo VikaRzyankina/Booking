@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Комната {{ room.name }} — {{ building.city }}, {{ building.street }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>{{ room.name }}</h1>
+    {% from 'flash_macro.html' import show_flashes %}
+    {{ show_flashes() }}
+
+    <div class="nav-links">
+        <a href="{{ url_for('room.browse', building_id=building.id) }}" class="back-link">
+            ← Назад к списку комнат
+        </a>
+        <a href="{{ url_for('room.edit_room', id=room.id) }}" class="add-link">
+            ✏️ Редактировать
+        </a>
+        <form action="{{ url_for('room.delete_room', id=room.id) }}" method="post" class="inline-form">
+            <button type="submit"
+                    onclick="return confirm('Удалить комнату {{ room.name }}?')"
+                    class="delete-btn">
+                Удалить
+            </button>
+        </form>
+    </div>
+
+    <div class="room-view-container">
+        <div class="room-image-section">
+            {% set image_path = '/static/assets/rooms/' + room.id|string + '.jpeg' %}
+            <img src="{{ image_path }}"
+                 alt="{{ room.name }}"
+                 class="room-detail-image"
+                 onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'image-placeholder room-detail-placeholder\'>🏢</div>';">
+        </div>
+
+        <div class="room-info-section">
+            <div class="room-status-badge {% if room.is_available_for_booking %}status-positive{% else %}status-negative{% endif %}">
+                {{ "Доступна для бронирования" if room.is_available_for_booking else "Недоступна" }}
+            </div>
+
+            {% if room.description %}
+            <div class="room-description-block">
+                <h3>Описание</h3>
+                <p>{{ room.description }}</p>
+            </div>
+            {% endif %}
+
+            <div class="room-specs">
+                <div class="spec-item">
+                    <span class="spec-icon">📐</span>
+                    <span class="spec-value">{{ room.size if room.size else '—' }} м²</span>
+                </div>
+                <div class="spec-item">
+                    <span class="spec-icon">👥</span>
+                    <span class="spec-value">{{ room.capacity }} мест</span>
+                </div>
+                <div class="spec-item">
+                    <span class="spec-icon">🏢</span>
+                    <span class="spec-value">{{ building.city }}, {{ building.street }}</span>
+                </div>
+            </div>
+
+            {% if amenities %}
+            <div class="room-amenities">
+                <h3>Удобства</h3>
+                <div class="amenities-list">
+                    {% for amenity in amenities %}
+                    <span class="amenity-tag">{{ amenity.name }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="room-actions-block">
+                {% if room.is_available_for_booking %}
+                <a href="{{ url_for('booking.booking_request', room_id=room.id) }}" class="add-link">
+                    Забронировать
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>
