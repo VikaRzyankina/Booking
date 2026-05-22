@@ -158,6 +158,8 @@ tr:hover { background: var(--bg); }
 
 .hours-table { margin: 1rem 0 1.5rem; }
 .hours-table td:first-child { font-weight: 500; background: var(--bg); }
+.hours-table-h td:first-child { font-weight: inherit; background: inherit; }
+.hours-table-h tr:hover { background: none; }
 .time-input {
     padding: .375rem .5rem;
     border: 1px solid #cbd5e1;

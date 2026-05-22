@@ -20,8 +20,11 @@
         </a>
     </div>
 
+    {% set day_names = {'Monday': 'Пн', 'Tuesday': 'Вт', 'Wednesday': 'Ср', 'Thursday': 'Чт', 'Friday': 'Пт', 'Saturday': 'Сб', 'Sunday': 'Вс'} %}
+
     <div class="cards-grid">
         {% for building in buildings %}
+        {% set wh = working_hours_map.get(building.id, {}) %}
         <div class="card">
             <div class="card-image">
                 {% set image_path = '/static/assets/buildings/' + building.id|string + '.jpeg' %}
@@ -34,6 +37,23 @@
             <div class="card-content">
                 <h3 class="card-title"><a href="{{ url_for('room.browse', building_id=building.id) }}">{{ building.city }}, {{ building.street }}</a></h3>
                 <p class="card-description">{{ building.description or '—' }}</p>
+                {% if wh %}
+                <table class="hours-table" style="margin:.75rem 0 0;font-size:.82rem">
+                    {% for day in days %}
+                    {% set h = wh.get(day) %}
+                    <tr>
+                        <td style="padding:.25rem .5rem;width:2.5rem">{{ day_names[day] }}</td>
+                        <td style="padding:.25rem .5rem">
+                            {% if h and not h.is_closed %}
+                                {{ (h.open_time|string)[:5] }} – {{ (h.close_time|string)[:5] }}
+                            {% else %}
+                                <span style="color:var(--muted)">Закрыто</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </table>
+                {% endif %}
             </div>
         </div>
         {% else %}

@@ -24,6 +24,33 @@
         </form>
     </div>
 
+    {% set day_names = {'Monday': 'Пн', 'Tuesday': 'Вт', 'Wednesday': 'Ср', 'Thursday': 'Чт', 'Friday': 'Пт', 'Saturday': 'Сб', 'Sunday': 'Вс'} %}
+    {% if working_hours %}
+    <table class="hours-table hours-table-h">
+        <thead>
+            <tr>
+                {% for day in days %}
+                <th>{{ day_names[day] }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                {% for day in days %}
+                {% set h = working_hours.get(day) %}
+                <td>
+                    {% if h and not h.is_closed %}
+                        {{ (h.open_time|string)[:5] }}<br>{{ (h.close_time|string)[:5] }}
+                    {% else %}
+                        <span style="color:var(--muted)">—</span>
+                    {% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+        </tbody>
+    </table>
+    {% endif %}
+
     <div class="cards-grid">
         {% for room in rooms %}
         <div class="card">

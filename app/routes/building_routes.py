@@ -102,7 +102,25 @@ def browse():
         """, (user_id, user_id))
         buildings = cur.fetchall()
 
-    return render_template('building/browse.html', buildings=buildings)
+        building_ids = [b['id'] for b in buildings]
+        working_hours_map = {}
+        if building_ids:
+            cur.execute("""
+                SELECT building_id, day_of_week, open_time, close_time, is_closed
+                FROM working_hours
+                WHERE building_id = ANY(%s)
+            """, (building_ids,))
+            for row in cur.fetchall():
+                bid = row['building_id']
+                if bid not in working_hours_map:
+                    working_hours_map[bid] = {}
+                working_hours_map[bid][row['day_of_week']] = {
+                    'open_time': row['open_time'],
+                    'close_time': row['close_time'],
+                    'is_closed': row['is_closed']
+                }
+
+    return render_template('building/browse.html', buildings=buildings, working_hours_map=working_hours_map, days=DAYS)
 
 
 @building_bp.route('/buildings/new', methods=['GET', 'POST'])

@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, session
 
 from app.assets_manager import save_photo, allowed_file, MAX_PHOTO_SIZE
-from app.db import get_db_cursor
+from app.db import get_db_cursor, DAYS
 
 room_bp = Blueprint('room', __name__, url_prefix='/')
 
@@ -22,7 +22,20 @@ def browse(building_id):
         """, (building_id,))
         rooms = cur.fetchall()
 
-    return render_template('room/browse.html', building=building, rooms=rooms)
+        cur.execute("""
+            SELECT day_of_week, open_time, close_time, is_closed
+            FROM working_hours
+            WHERE building_id = %s
+        """, (building_id,))
+        working_hours = {}
+        for row in cur.fetchall():
+            working_hours[row['day_of_week']] = {
+                'open_time': row['open_time'],
+                'close_time': row['close_time'],
+                'is_closed': row['is_closed']
+            }
+
+    return render_template('room/browse.html', building=building, rooms=rooms, working_hours=working_hours, days=DAYS)
 
 
 @room_bp.route('/buildings/<int:building_id>/rooms/new', methods=['GET', 'POST'])
