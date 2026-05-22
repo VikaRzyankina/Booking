@@ -18,6 +18,10 @@
         <a href="{{ url_for('room.new_room', building_id=building.id) }}" class="add-link">
             + Добавить комнату
         </a>
+        <a href="{{ url_for('building.edit_building', id=building.id) }}" class="add-link">Редактировать здание</a>
+        <form action="{{ url_for('building.delete_building', id=building.id) }}" method="post" class="inline-form">
+            <button type="submit" onclick="return confirm('Удалить здание?')" class="delete-btn">Удалить здание</button>
+        </form>
     </div>
 
     <div class="cards-grid">

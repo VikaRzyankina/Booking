@@ -17,13 +17,13 @@
             ← Назад к списку комнат
         </a>
         <a href="{{ url_for('room.edit_room', id=room.id) }}" class="add-link">
-            ✏️ Редактировать
+            Редактировать комнату
         </a>
         <form action="{{ url_for('room.delete_room', id=room.id) }}" method="post" class="inline-form">
             <button type="submit"
                     onclick="return confirm('Удалить комнату {{ room.name }}?')"
                     class="delete-btn">
-                Удалить
+                Удалить комнату
             </button>
         </form>
     </div>

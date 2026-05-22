@@ -25,20 +25,15 @@
         <div class="card">
             <div class="card-image">
                 {% set image_path = '/static/assets/buildings/' + building.id|string + '.jpeg' %}
-                <img src="{{ image_path }}"
-                     alt="{{ building.city }}, {{ building.street }}"
-                     onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'image-placeholder\'>🏢</div>';">
+                <a href="{{ url_for('room.browse', building_id=building.id) }}">
+                    <img src="{{ image_path }}"
+                         alt="{{ building.city }}, {{ building.street }}"
+                         onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'image-placeholder\'>🏢</div>';">
+                </a>
             </div>
             <div class="card-content">
-                <h3 class="card-title">{{ building.city }}, {{ building.street }}</h3>
+                <h3 class="card-title"><a href="{{ url_for('room.browse', building_id=building.id) }}">{{ building.city }}, {{ building.street }}</a></h3>
                 <p class="card-description">{{ building.description or '—' }}</p>
-                <div class="card-actions">
-                    <a href="{{ url_for('room.browse', building_id=building.id) }}">Комнаты</a>
-                    <a href="{{ url_for('building.edit_building', id=building.id) }}">Редактировать</a>
-                    <form action="{{ url_for('building.delete_building', id=building.id) }}" method="post" class="inline-form">
-                        <button type="submit" onclick="return confirm('Удалить здание?')" class="delete-btn">Удалить</button>
-                    </form>
-                </div>
             </div>
         </div>
         {% else %}
