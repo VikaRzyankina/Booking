@@ -1,163 +1,60 @@
 .reviews-section {
     margin-top: 2.5rem;
     padding-top: 1.5rem;
-    border-top: 1px solid #e0e0e0;
-}
-
-.reviews-section h2 {
-    margin-bottom: 1rem;
+    border-top: 1px solid var(--border);
 }
 
 .average-rating {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: .5rem;
     margin-bottom: 1.5rem;
     font-size: 1.1rem;
 }
-
-.average-rating .stars-display {
-    font-size: 1.4rem;
-    letter-spacing: 2px;
-}
-
-.average-value {
-    font-weight: 500;
-    color: #555;
-}
+.average-rating .stars-display { font-size: 1.4rem; letter-spacing: 2px; }
+.average-value { font-weight: 500; color: #555; }
 
 .stars-display {
     position: relative;
     display: inline-block;
     unicode-bidi: isolate;
-    color: #ccc;
 }
-
-.stars-display::before {
-    content: "★★★★★★★★★★";
-    color: #ccc;
-}
-
+.stars-display::before { content: "★★★★★★★★★★"; color: #ccc; }
 .stars-display::after {
     content: "★★★★★★★★★★";
     color: gold;
     position: absolute;
-    left: 0;
-    top: 0;
+    left: 0; top: 0;
     overflow: hidden;
     white-space: nowrap;
     width: var(--rating-width, 0%);
 }
 
-.review-item {
-    padding: 1rem 0;
-    border-bottom: 1px solid #eee;
-}
-
+.review-item { padding: 1rem 0; border-bottom: 1px solid #eee; }
 .review-item.own-review {
-    background-color: #f8f9fa;
-    border-left: 4px solid #4a90e2;
+    background: var(--bg);
+    border-left: 4px solid var(--accent);
     padding-left: 1rem;
     margin: 1rem 0;
     border-radius: 4px;
 }
-
-.review-header {
-    display: flex;
-    align-items: center;
-    gap: 0.8rem;
-    margin-bottom: 0.3rem;
-}
-
-.review-author {
-    font-weight: 600;
-}
-
-.review-text {
-    margin: 0.4rem 0;
-    color: #333;
-    line-height: 1.5;
-}
-
-.review-meta {
-    font-size: 0.85rem;
-    color: #888;
-    display: flex;
-    gap: 0.5rem;
-}
-
-.review-edited {
-    font-style: italic;
-}
-
-.review-actions {
-    margin-top: 0.5rem;
-    display: flex;
-    gap: 0.8rem;
-    align-items: center;
-}
-
-.edit-link,
-.cancel-link {
-    font-size: 0.9rem;
-    text-decoration: none;
-    color: #4a90e2;
-}
-
-.edit-link:hover {
-    text-decoration: underline;
-}
-
-.delete-btn {
-    background: none;
-    border: none;
-    color: #c0392b;
-    cursor: pointer;
-    font-size: 0.9rem;
-    padding: 0;
-    text-decoration: underline;
-}
-
-.delete-btn:hover {
-    color: #a0301f;
-}
+.review-header { display: flex; align-items: center; gap: .8rem; margin-bottom: .3rem; }
+.review-author { font-weight: 600; }
+.review-text { margin: .4rem 0; color: #333; line-height: 1.5; }
+.review-meta { font-size: .85rem; color: #888; display: flex; gap: .5rem; }
+.review-edited { font-style: italic; }
+.review-actions { margin-top: .5rem; display: flex; gap: .8rem; align-items: center; }
+.edit-link { font-size: .9rem; text-decoration: none; color: var(--accent); }
+.edit-link:hover { text-decoration: underline; }
 
 .review-form {
-    background: #fafafa;
+    background: var(--bg);
     padding: 1.2rem;
     border-radius: 8px;
     margin: 1rem 0 1.5rem;
-    border: 1px solid #ddd;
+    border: 1px solid var(--border);
 }
-
-.review-form h3 {
-    margin-top: 0;
-}
-
-.form-group {
-    margin-bottom: 1rem;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 0.3rem;
-    font-weight: 500;
-}
-
-textarea {
-    width: 100%;
-    padding: 0.6rem;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    resize: vertical;
-    font-family: inherit;
-}
-
-.form-actions {
-    display: flex;
-    gap: 0.8rem;
-    align-items: center;
-}
+.review-form h3 { margin-top: 0; }
 
 .star-rating {
     display: flex;
@@ -167,19 +64,8 @@ textarea {
     line-height: 1;
     gap: 2px;
 }
-
-.star-rating input[type="radio"] {
-    display: none;
-}
-
-.star-rating label {
-    color: #ccc;
-    cursor: pointer;
-    transition: color 0.2s;
-}
-
+.star-rating input[type=radio] { display: none; }
+.star-rating label { color: #ccc; cursor: pointer; transition: color .2s; }
 .star-rating label:hover,
 .star-rating label:hover ~ label,
-.star-rating input[type="radio"]:checked ~ label {
-    color: gold;
-}
+.star-rating input[type=radio]:checked ~ label { color: gold; }

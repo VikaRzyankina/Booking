@@ -28,12 +28,13 @@
         <div class="form-group">
             <label for="photo">Фото здания:</label>
             {% if building and building.id %}
-            <div style="margin-bottom: 0.5rem;">
-                <img src="{{ url_for('static', filename='assets/buildings/' ~ building.id ~ '.jpeg') }}" alt="Фото здания" style="max-width: 300px; max-height: 200px; border: 1px solid #e2e8f0; border-radius: 4px;" onerror="this.style.display='none'">
-            </div>
+            <img src="{{ url_for('static', filename='assets/buildings/' ~ building.id ~ '.jpeg') }}"
+                 alt="Фото здания"
+                 class="photo-preview"
+                 onerror="this.style.display='none'">
             {% endif %}
             <input type="file" id="photo" name="photo" accept="image/jpeg,image/png,image/webp">
-            <small style="color: #718096; display: block; margin-top: 0.25rem;">Рекомендуемый размер: не более 2 МБ. Поддерживаются форматы JPEG, PNG, WebP. Изображение будет сохранено как JPEG.</small>
+            <small class="field-hint">Рекомендуемый размер: не более 2 МБ. Поддерживаются форматы JPEG, PNG, WebP. Изображение будет сохранено как JPEG.</small>
         </div>
 
         <h2>Часы работы</h2>

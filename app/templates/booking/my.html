@@ -1,20 +1,11 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Мои заявки на бронирование</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
+{% extends 'layout.html' %}
+{% block title %}Мои заявки на бронирование{% endblock %}
+{% block body %}
     <h1>Мои заявки на бронирование</h1>
-
     {% from 'flash_macro.html' import show_flashes %}
     {{ show_flashes() }}
 
-    <a href="{{ url_for('user.user_page') }}" class="back-link">
-        ← Назад в профиль
-    </a>
+    <a href="{{ url_for('user.user_page') }}" class="back-link">← Назад в профиль</a>
 
     <h2>Предстоящие и текущие</h2>
     {% if future_bookings %}
@@ -40,13 +31,9 @@
                 <td>{{ b.entry_time.strftime('%Y-%m-%d %H:%M') if b.entry_time else '' }}</td>
                 <td>{{ b.exit_time.strftime('%Y-%m-%d %H:%M') if b.exit_time else '' }}</td>
                 <td>
-                    {% if b.is_accepted is none %}
-                        На рассмотрении
-                    {% elif b.is_accepted %}
-                        Принята
-                    {% else %}
-                        Отклонена
-                    {% endif %}
+                    {% if b.is_accepted is none %}На рассмотрении
+                    {% elif b.is_accepted %}Принята
+                    {% else %}Отклонена{% endif %}
                 </td>
                 <td>{{ b.deny_reason or '' }}</td>
                 <td>{{ 'Да' if b.is_automatic else 'Нет' }}</td>
@@ -82,13 +69,9 @@
                 <td>{{ b.entry_time.strftime('%Y-%m-%d %H:%M') if b.entry_time else '' }}</td>
                 <td>{{ b.exit_time.strftime('%Y-%m-%d %H:%M') if b.exit_time else '' }}</td>
                 <td>
-                    {% if b.is_accepted is none %}
-                        На рассмотрении
-                    {% elif b.is_accepted %}
-                        Принята
-                    {% else %}
-                        Отклонена
-                    {% endif %}
+                    {% if b.is_accepted is none %}На рассмотрении
+                    {% elif b.is_accepted %}Принята
+                    {% else %}Отклонена{% endif %}
                 </td>
                 <td>{{ b.deny_reason or '' }}</td>
                 <td>{{ 'Да' if b.is_automatic else 'Нет' }}</td>
@@ -99,5 +82,4 @@
     {% else %}
     <p>Нет прошедших заявок.</p>
     {% endif %}
-</body>
-</html>
+{% endblock %}

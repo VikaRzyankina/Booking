@@ -1,12 +1,6 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Запрос на бронирование</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
+{% extends 'layout.html' %}
+{% block title %}Запрос на бронирование{% endblock %}
+{% block body %}
     <h1>Запрос на бронирование</h1>
     {% from 'flash_macro.html' import show_flashes %}
     {{ show_flashes() }}
@@ -16,16 +10,13 @@
             <label for="booking_start">Дата и время бронирования:</label>
             <input type="datetime-local" id="booking_start" name="booking_start">
         </div>
-
         <div class="form-group">
             <label for="booking_time">На сколько минут:</label>
             <input type="number" step="10" id="booking_time" name="booking_time">
         </div>
-
         <div class="form-actions">
             <button type="submit" class="submit-btn">Отправить</button>
             <a href="{{ url_for('building.browse') }}" class="cancel-link">Отмена</a>
         </div>
     </form>
-</body>
-</html>
+{% endblock %}

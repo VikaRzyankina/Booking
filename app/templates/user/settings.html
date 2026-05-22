@@ -12,8 +12,8 @@
     {{ show_flashes() }}
 
     <form method="POST" class="generic-form">
-        <div style="display: flex; gap: 2rem; flex-wrap: wrap;">
-            <div style="flex: 1;">
+        <div class="settings-cols">
+            <div class="settings-col">
                 <h2>Смена пароля</h2>
                 <div class="form-group">
                     <label for="current_password">Текущий пароль:</label>
@@ -29,7 +29,7 @@
                 </div>
             </div>
 
-            <div style="flex: 1;">
+            <div class="settings-col">
                 <h2>Изменение личных данных</h2>
                 <div class="form-group">
                     <label for="full_name">Полное имя:</label>
@@ -42,7 +42,7 @@
             </div>
         </div>
 
-        <div class="form-actions" style="margin-top: 2rem;">
+        <div class="form-actions">
             <button type="submit" class="submit-btn">Сохранить изменения</button>
             <a href="{{ url_for('user.user_page') }}" class="cancel-link">Отмена</a>
         </div>

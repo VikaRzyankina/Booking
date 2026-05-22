@@ -1,19 +1,11 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Заявки на бронирование</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
+{% extends 'layout.html' %}
+{% block title %}Заявки на бронирование{% endblock %}
+{% block body %}
     <h1>Заявки на бронирование</h1>
     {% from 'flash_macro.html' import show_flashes %}
     {{ show_flashes() }}
 
-    <a href="{{ url_for('user.user_page') }}" class="back-link">
-        ← Назад в профиль
-    </a>
+    <a href="{{ url_for('user.user_page') }}" class="back-link">← Назад в профиль</a>
 
     {% if requests %}
     <table>
@@ -22,8 +14,8 @@
                 <th>Заявитель</th>
                 <th>Адрес</th>
                 <th>Комната</th>
-                <th>Дата и время начала</th>
-                <th>Дата и время окончания</th>
+                <th>Начало</th>
+                <th>Окончание</th>
                 <th>Назначение</th>
                 <th>Действия</th>
             </tr>
@@ -56,14 +48,15 @@
     {% else %}
     <p>Нет активных заявок на бронирование.</p>
     {% endif %}
-</body>
+{% endblock %}
+{% block scripts %}
 <script>
 function denyWithReason(bookingId) {
     let reason = prompt("Введите причину отказа (необязательно):", "");
-    if (reason !== null) {  // нажал OK, даже если пустая строка
+    if (reason !== null) {
         document.getElementById('reason-' + bookingId).value = reason;
         document.getElementById('deny-form-' + bookingId).submit();
     }
 }
 </script>
-</html>
+{% endblock %}

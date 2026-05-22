@@ -11,47 +11,48 @@
     {% from 'flash_macro.html' import show_flashes %}
     {{ show_flashes() }}
 
-    <div class="generic-form" style="margin-bottom: 1rem;">
-        <p style="margin-bottom: 0; color: #475569;">
+    <div class="generic-form info-box">
+        <div class="form-group">
             <strong>Здание:</strong> {{ building.city }}, {{ building.street }}
-        </p>
+        </div>
     </div>
 
     <form method="post" class="generic-form" enctype="multipart/form-data">
         <div class="form-group">
-            <label for="name">Название комнаты <span style="color: #e53e3e;">*</span>:</label>
+            <label for="name">Название комнаты <span class="required-star">*</span>:</label>
             <input type="text" id="name" name="name" value="{{ room.name if room and room.name else '' }}" required maxlength="100" placeholder="например, 'Конференц-зал' или 'Переговорная А'">
             {% if room %}
-            <small style="color: #718096; display: block; margin-top: 0.25rem;">Уникальное название в пределах здания</small>
+            <small class="field-hint">Уникальное название в пределах здания</small>
             {% endif %}
         </div>
 
         <div class="form-group">
             <label for="photo">Фото комнаты:</label>
             {% if room and room.id %}
-            <div style="margin-bottom: 0.5rem;">
-                <img src="{{ url_for('static', filename='assets/rooms/' ~ room.id ~ '.jpeg') }}" alt="Фото комнаты" style="max-width: 300px; max-height: 200px; border: 1px solid #e2e8f0; border-radius: 4px;" onerror="this.style.display='none'">
-            </div>
+            <img src="{{ url_for('static', filename='assets/rooms/' ~ room.id ~ '.jpeg') }}"
+                 alt="Фото комнаты"
+                 class="photo-preview"
+                 onerror="this.style.display='none'">
             {% endif %}
             <input type="file" id="photo" name="photo" accept="image/jpeg,image/png,image/webp">
-            <small style="color: #718096; display: block; margin-top: 0.25rem;">Рекомендуемый размер: не более 2 МБ. Поддерживаются форматы JPEG, PNG, WebP. Изображение будет сохранено как JPEG.</small>
+            <small class="field-hint">Рекомендуемый размер: не более 2 МБ. Поддерживаются форматы JPEG, PNG, WebP. Изображение будет сохранено как JPEG.</small>
         </div>
 
         <div class="form-group">
             <label for="description">Описание:</label>
             <textarea id="description" name="description" rows="3" maxlength="255" placeholder="Дополнительная информация о комнате...">{{ room.description if room and room.description else '' }}</textarea>
-            <small style="color: #718096; display: block; margin-top: 0.25rem;">Необязательное поле. До 255 символов.</small>
+            <small class="field-hint">Необязательное поле. До 255 символов.</small>
         </div>
 
         <div class="form-group">
-            <label class="checkbox-label" style="display: flex; align-items: center; gap: 0.5rem;">
+            <label class="checkbox-label">
                 <input type="checkbox" name="is_available" {% if room and room.is_available_for_booking %}checked{% endif %}>
                 <span>Доступна для бронирования</span>
             </label>
         </div>
 
         <div class="form-group">
-            <label class="checkbox-label" style="display: flex; align-items: center; gap: 0.5rem;">
+            <label class="checkbox-label">
                 <input type="checkbox" name="auto_booking" {% if room and room.auto_booking %}checked{% endif %}>
                 <span>Автоматический приём брони</span>
             </label>
@@ -63,7 +64,7 @@
         </div>
 
         <div class="form-group">
-            <label for="capacity">Вместимость (человек) <span style="color: #e53e3e;">*</span>:</label>
+            <label for="capacity">Вместимость (человек) <span class="required-star">*</span>:</label>
             <input type="number" id="capacity" name="capacity" value="{{ room.capacity if room else '' }}" required min="1" placeholder="положительное число">
         </div>
 
