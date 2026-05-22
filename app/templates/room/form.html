@@ -68,6 +68,23 @@
             <input type="number" id="capacity" name="capacity" value="{{ room.capacity if room else '' }}" required min="1" placeholder="положительное число">
         </div>
 
+        <div class="form-group">
+            <label>Удобства:</label>
+            {% if all_amenities %}
+            <div class="checkboxes-wrap">
+                {% for amenity in all_amenities %}
+                <label class="checkbox-label">
+                    <input type="checkbox" name="amenity_ids" value="{{ amenity.id }}"
+                        {% if amenity.id in room_amenity_ids %}checked{% endif %}>
+                    <span>{{ amenity.name }}</span>
+                </label>
+                {% endfor %}
+            </div>
+            {% endif %}
+            <input type="text" id="new_amenities" name="new_amenities" placeholder="Новые удобства через запятую">
+            <small class="field-hint">Новые удобства будут сохранены в нижнем регистре.</small>
+        </div>
+
         <div class="form-actions">
             <button type="submit" class="submit-btn">Сохранить</button>
             {% if room %}

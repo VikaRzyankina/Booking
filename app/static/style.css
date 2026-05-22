@@ -171,6 +171,7 @@ tr:hover { background: var(--bg); }
 .checkbox-label { display: inline-flex; align-items: center; gap: .5rem; cursor: pointer; font-size: .9rem; }
 .checkbox-label input[type=checkbox] { width: 1rem; height: 1rem; cursor: pointer; }
 .checkbox-label span { color: var(--muted); }
+.checkboxes-wrap { display: flex; flex-wrap: wrap; gap: .4rem .75rem; margin-bottom: .5rem; }
 
 .cards-grid {
     display: grid;
