@@ -12,30 +12,70 @@
     {{ show_flashes() }}
 
     <div class="nav-links">
-        <a href="{{ url_for('user.user_page') }}" class="back-link">
-            ← Назад в профиль
-        </a>
-        <a href="{{ url_for('building.new_building') }}" class="add-link">
-            + Добавить здание
-        </a>
+        <a href="{{ url_for('user.user_page') }}" class="back-link">← Назад в профиль</a>
+        <a href="{{ url_for('building.new_building') }}" class="add-link">+ Добавить здание</a>
     </div>
+
+    {% set active_count = (1 if filter_city else 0) + (1 if filter_street else 0) + (1 if filter_date else 0) %}
+    <details class="filter-panel" {% if active_count %}open{% endif %}>
+        <summary class="filter-toggle">
+            Фильтры{% if active_count %} <span class="filter-badge">{{ active_count }}</span>{% endif %}
+        </summary>
+        <form method="get" action="" class="filter-body">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label class="filter-label" for="f-city">Город</label>
+                    <input type="text" id="f-city" name="city" value="{{ filter_city }}"
+                           placeholder="Например: Москва" class="filter-input">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label" for="f-street">Улица</label>
+                    <input type="text" id="f-street" name="street" value="{{ filter_street }}"
+                           placeholder="Часть названия" class="filter-input">
+                </div>
+            </div>
+
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label class="filter-label" for="f-date">Дата</label>
+                    <input type="date" id="f-date" name="date" value="{{ filter_date }}" class="filter-input">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label" for="f-time-from">Время от</label>
+                    <input type="time" id="f-time-from" name="time_from" value="{{ filter_time_from }}"
+                           step="600" class="filter-input filter-input-sm">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label" for="f-time-to">до</label>
+                    <input type="time" id="f-time-to" name="time_to" value="{{ filter_time_to }}"
+                           step="600" class="filter-input filter-input-sm">
+                </div>
+            </div>
+
+            <div class="filter-actions">
+                <button type="submit" class="submit-btn">Применить</button>
+                <a href="{{ url_for('building.browse') }}" class="cancel-link">Сбросить</a>
+            </div>
+        </form>
+    </details>
 
     {% set day_names = {'Monday': 'Пн', 'Tuesday': 'Вт', 'Wednesday': 'Ср', 'Thursday': 'Чт', 'Friday': 'Пт', 'Saturday': 'Сб', 'Sunday': 'Вс'} %}
 
     <div class="cards-grid">
         {% for building in buildings %}
         {% set wh = working_hours_map.get(building.id, {}) %}
+        {% set room_url = url_for('room.browse', building_id=building.id) + time_qs %}
         <div class="card">
             <div class="card-image">
                 {% set image_path = '/static/assets/buildings/' + building.id|string + '.jpeg' %}
-                <a href="{{ url_for('room.browse', building_id=building.id) }}">
+                <a href="{{ room_url }}">
                     <img src="{{ image_path }}"
                          alt="{{ building.city }}, {{ building.street }}"
                          onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'image-placeholder\'>🏢</div>';">
                 </a>
             </div>
             <div class="card-content">
-                <h3 class="card-title"><a href="{{ url_for('room.browse', building_id=building.id) }}">{{ building.city }}, {{ building.street }}</a></h3>
+                <h3 class="card-title"><a href="{{ room_url }}">{{ building.city }}, {{ building.street }}</a></h3>
                 <p class="card-description">{{ building.description or '—' }}</p>
                 {% if wh %}
                 <table class="hours-table" style="margin:.75rem 0 0;font-size:.82rem">
@@ -58,7 +98,7 @@
         </div>
         {% else %}
         <div class="card-empty">
-            <p>Нет добавленных зданий.</p>
+            <p>Нет зданий, соответствующих фильтрам.</p>
         </div>
         {% endfor %}
     </div>

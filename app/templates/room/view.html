@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Комната {{ room.name }} — {{ building.city }}, {{ building.street }}</title>
+    <title>Комната {{ room.name }} : {{ building.city }}, {{ building.street }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='reviews.css') }}">
 </head>
@@ -12,8 +12,11 @@
     {% from 'flash_macro.html' import show_flashes %}
     {{ show_flashes() }}
 
+    {%- set _date = request.args.get('date') -%}
+    {%- set _tf = request.args.get('time_from') -%}
+    {%- set _tt = request.args.get('time_to') -%}
     <div class="nav-links">
-        <a href="{{ url_for('room.browse', building_id=building.id) }}" class="back-link">
+        <a href="{{ url_for('room.browse', building_id=building.id, date=_date, time_from=_tf, time_to=_tt) }}" class="back-link">
             ← Назад к списку комнат
         </a>
         <a href="{{ url_for('room.edit_room', id=room.id) }}" class="add-link">
@@ -77,7 +80,7 @@
 
             <div class="room-actions-block">
                 {% if room.is_available_for_booking %}
-                <a href="{{ url_for('booking.booking_request', room_id=room.id) }}" class="add-link">
+                <a href="{{ url_for('booking.booking_request', room_id=room.id, date=_date, time_from=_tf, time_to=_tt) }}" class="add-link">
                     Забронировать
                 </a>
                 {% endif %}

@@ -1,0 +1,194 @@
+{% macro calendar_html(show_legend=true) %}
+<div class="cal-wrap">
+    <div class="cal-panel">
+        <div class="cal-header">
+            <button type="button" class="cal-nav" id="cal-prev">&#8249;</button>
+            <span class="cal-title" id="cal-title"></span>
+            <button type="button" class="cal-nav" id="cal-next">&#8250;</button>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
+        {% if show_legend %}
+        <div class="cal-legend">
+            <span><span class="legend-dot closed"></span>Выходной</span>
+        </div>
+        {% endif %}
+    </div>
+    <div class="slots-panel" id="slots-panel"></div>
+</div>
+<div class="cal-selected-display" id="cal-selected"></div>
+{% endmacro %}
+
+
+{% macro booking_calendar_scripts(room_id, initial_date='', initial_start='', initial_end='') %}
+<script>
+(function () {
+    const ROOM_ID = {{ room_id }};
+    const MONTHS = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+    const DOWS = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+    const INITIAL_DATE = {{ initial_date  | tojson }};
+    const INITIAL_START = {{ initial_start | tojson }};
+    const INITIAL_END = {{ initial_end   | tojson }};
+
+    let view = new Date(); view.setDate(1);
+    let data = { bookings: {}, working_hours: {} };
+    let selDate = null, selWh = null, selStart = null, selEnd = null;
+    let firstLoad = true;
+
+    const pad = n => String(n).padStart(2, '0');
+    const isoDow = d => (d.getDay() + 6) % 7;
+    const toMins = s => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
+    const fromMins = m => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
+
+    if (INITIAL_DATE) {
+        const [iy, im] = INITIAL_DATE.split('-').map(Number);
+        view = new Date(iy, im - 1, 1);
+    }
+
+    async function load() {
+        const y = view.getFullYear(), mo = view.getMonth() + 1;
+        try {
+            const r = await fetch(`/booking/${ROOM_ID}/availability?year=${y}&month=${mo}`);
+            data = r.ok ? await r.json() : { bookings: {}, working_hours: {} };
+        } catch { data = { bookings: {}, working_hours: {} }; }
+
+        if (firstLoad && INITIAL_DATE) {
+            firstLoad = false;
+            const [iy, im, id] = INITIAL_DATE.split('-').map(Number);
+            selDate = INITIAL_DATE;
+            selWh = data.working_hours[String(isoDow(new Date(iy, im - 1, id)))];
+            if (INITIAL_START) {
+                selStart = toMins(INITIAL_START);
+                if (INITIAL_END) selEnd = toMins(INITIAL_END);
+            }
+            updateForm();
+            renderSlots();
+        } else {
+            firstLoad = false;
+        }
+
+        renderCal();
+    }
+
+    function renderCal() {
+        const y = view.getFullYear(), m = view.getMonth();
+        document.getElementById('cal-title').textContent = `${MONTHS[m]} ${y}`;
+        const grid = document.getElementById('cal-grid');
+        const todayMs = new Date(new Date().setHours(0, 0, 0, 0)).getTime();
+
+        grid.innerHTML = DOWS.map(d => `<div class="cal-dow">${d}</div>`).join('')
+            + `<div class="cal-day"></div>`.repeat(isoDow(new Date(y, m, 1)));
+
+        for (let d = 1; d <= new Date(y, m + 1, 0).getDate(); d++) {
+            const key = `${y}-${pad(m + 1)}-${pad(d)}`;
+            const dt = new Date(y, m, d);
+            const wh = data.working_hours[String(isoDow(dt))];
+            const isPast = dt.getTime() < todayMs;
+            const closed = wh?.closed ?? false;
+            let cls = 'cal-day'
+                + (dt.getTime() === todayMs ? ' today' : '')
+                + (isPast ? ' past' : closed ? ' closed' : ' clickable' + (key === selDate ? ' selected' : ''));
+            const el = Object.assign(document.createElement('div'), { className: cls, textContent: d });
+            if (!isPast && !closed)
+                el.onclick = () => { selDate = key; selWh = wh; selStart = null; selEnd = null; updateForm(); renderCal(); renderSlots(); };
+            grid.appendChild(el);
+        }
+    }
+
+    function renderSlots() {
+        const panel = document.getElementById('slots-panel');
+        if (!selDate) { panel.classList.remove('visible'); return; }
+
+        let openMins = 0, closeMins = 1440;
+        if (selWh?.open && selWh?.close && !selWh.closed) {
+            openMins = toMins(selWh.open);
+            closeMins = toMins(selWh.close);
+            if (closeMins <= openMins) closeMins += 1440;
+        }
+
+        const bkgs = (data.bookings[selDate] || []).map(b => {
+            const e = toMins(b.entry), x = toMins(b.exit);
+            return [e, x <= e ? x + 1440 : x];
+        });
+
+        const now = new Date();
+        const [ky, km, kd] = selDate.split('-').map(Number);
+        const nowMins = (ky === now.getFullYear() && km === now.getMonth() + 1 && kd === now.getDate())
+            ? now.getHours() * 60 + now.getMinutes() : -1;
+
+        const isFree = m => m > nowMins && !bkgs.some(([e, x]) => m >= e && m < x);
+
+        let html = '<div class="slots-header-row"><span class="slots-hour-label"></span>'
+            + Array.from({length: 6}, (_, s) => `<span class="slots-col-label">:${pad(s * 10)}</span>`).join('')
+            + '</div><div class="slots-hours">';
+
+        for (let h = Math.floor(openMins / 60); h < Math.ceil(closeMins / 60); h++) {
+            let row = `<span class="slots-hour-label">${pad(h)}</span>`;
+            for (let s = 0; s < 6; s++) {
+                const m = h * 60 + s * 10;
+                if (m < openMins || m >= closeMins) {
+                    row += `<button type="button" class="slot slot-closed" disabled title="закрыто">${pad(s * 10)}</button>`;
+                    continue;
+                }
+                const free = isFree(m);
+                let cls = 'slot' + (!free ? (m <= nowMins ? ' slot-past' : ' slot-busy') : '');
+                if (free) {
+                    if (selStart !== null && selEnd !== null && m >= selStart && m < selEnd)
+                        cls += m === selStart ? ' slot-start' : m === selEnd - 10 ? ' slot-end' : ' slot-range';
+                    else if (m === selStart)
+                        cls += ' slot-start slot-start-pending';
+                }
+                row += `<button type="button" class="${cls}" data-m="${m}"${free ? '' : ' disabled'}${!free && m > nowMins ? ' title="занято"' : ''}>${pad(s * 10)}</button>`;
+            }
+            html += `<div class="slots-row">${row}</div>`;
+        }
+        html += '</div>';
+
+        const prevScroll = panel.querySelector('.slots-hours')?.scrollTop ?? 0;
+        panel.innerHTML = html;
+        panel.classList.add('visible');
+        panel.querySelector('.slots-hours').scrollTop = prevScroll;
+
+        panel.querySelector('.slots-hours').addEventListener('click', e => {
+            const btn = e.target.closest('button.slot:not([disabled])');
+            if (!btn) return;
+            const m = +btn.dataset.m;
+            if (selStart === null || selEnd !== null) {
+                selStart = m; selEnd = null;
+            } else {
+                if (m < selStart) { selStart = m; selEnd = null; }
+                else { selEnd = m + 10; }
+            }
+            updateForm(); renderSlots();
+        });
+    }
+
+    function updateForm() {
+        const display = document.getElementById('cal-selected');
+        const bStart = document.getElementById('booking_start');
+        const bTime = document.getElementById('booking_time');
+        if (selDate && selStart !== null) {
+            const [y, m, d] = selDate.split('-');
+            if (selEnd !== null) {
+                bStart.value = `${selDate}T${fromMins(selStart)}`;
+                bTime.value = selEnd - selStart;
+                display.innerHTML = `${d}.${m}.${y}&nbsp;&nbsp;<b>От</b> ${fromMins(selStart)} <b>До</b> ${fromMins(selEnd)}`;
+            } else {
+                bStart.value = bTime.value = '';
+                display.innerHTML = `${d}.${m}.${y}&nbsp;&nbsp;<b>От</b> ${fromMins(selStart)} - <span class="cal-hint">выберите «До»</span>`;
+            }
+            display.classList.add('visible');
+        } else {
+            bStart.value = bTime.value = '';
+            display.textContent = '';
+            display.classList.remove('visible');
+        }
+    }
+
+    const resetNav = () => { selDate = null; selStart = null; selEnd = null; updateForm(); };
+    document.getElementById('cal-prev').onclick = () => { resetNav(); view.setMonth(view.getMonth() - 1); load(); };
+    document.getElementById('cal-next').onclick = () => { resetNav(); view.setMonth(view.getMonth() + 1); load(); };
+
+    load();
+})();
+</script>
+{% endmacro %}

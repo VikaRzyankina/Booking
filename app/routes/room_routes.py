@@ -1,25 +1,84 @@
+from datetime import datetime as dt_type
+from urllib.parse import urlencode
+from zoneinfo import ZoneInfo
+
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, session
 
 from app.assets_manager import save_photo, allowed_file, MAX_PHOTO_SIZE
 from app.db import get_db_cursor, DAYS
+
+TZ = ZoneInfo('Europe/Moscow')
 
 room_bp = Blueprint('room', __name__, url_prefix='/')
 
 
 @room_bp.route('/buildings/<int:building_id>/browse')
 def browse(building_id):
+    filter_date_str = request.args.get('date', '').strip() or None
+    filter_time_from = request.args.get('time_from', '').strip() or None
+    filter_time_to = request.args.get('time_to', '').strip() or None
+    filter_amenity_ids = request.args.getlist('amenity_ids', type=int)
+    filter_size_min = request.args.get('size_min', '').strip() or None
+    filter_size_max = request.args.get('size_max', '').strip() or None
+    filter_capacity_min = request.args.get('capacity_min', '').strip() or None
+
+    entry_time = exit_time = None
+    if filter_date_str and filter_time_from and filter_time_to:
+        try:
+            entry_time = dt_type.fromisoformat(f"{filter_date_str}T{filter_time_from}").replace(tzinfo=TZ)
+            exit_time = dt_type.fromisoformat(f"{filter_date_str}T{filter_time_to}").replace(tzinfo=TZ)
+            if exit_time <= entry_time:
+                entry_time = exit_time = None
+        except ValueError:
+            pass
+
+    extra_conds = []
+    extra_params = []
+
+    if entry_time and exit_time:
+        extra_conds.append("""NOT EXISTS (
+            SELECT 1 FROM bookings bk
+            WHERE bk.room_id = r.id
+              AND bk.is_accepted = TRUE
+              AND bk.entry_time < %s
+              AND bk.exit_time > %s
+        )""")
+        extra_params.extend([exit_time, entry_time])
+
+    if filter_amenity_ids:
+        extra_conds.append("""(
+            SELECT COUNT(*) FROM room_amenities ra
+            WHERE ra.room_id = r.id AND ra.amenity_id = ANY(%s)
+        ) = %s""")
+        extra_params.extend([filter_amenity_ids, len(filter_amenity_ids)])
+
+    try:
+        if filter_size_min:
+            extra_conds.append("r.size >= %s")
+            extra_params.append(float(filter_size_min))
+        if filter_size_max:
+            extra_conds.append("r.size <= %s")
+            extra_params.append(float(filter_size_max))
+        if filter_capacity_min:
+            extra_conds.append("r.capacity >= %s")
+            extra_params.append(int(filter_capacity_min))
+    except (ValueError, TypeError):
+        pass
+
+    extra_where = (' AND ' + ' AND '.join(extra_conds)) if extra_conds else ''
+
     with get_db_cursor() as cur:
         cur.execute("SELECT id, city, street FROM buildings WHERE id = %s", (building_id,))
         building = cur.fetchone()
         if not building:
             abort(404)
 
-        cur.execute("""
-            SELECT id, name, description, is_available_for_booking, size, capacity
-            FROM rooms
-            WHERE building_id = %s
-            ORDER BY id
-        """, (building_id,))
+        cur.execute(f"""
+            SELECT r.id, r.name, r.description, r.is_available_for_booking, r.size, r.capacity
+            FROM rooms r
+            WHERE r.building_id = %s{extra_where}
+            ORDER BY r.id
+        """, [building_id] + extra_params)
         rooms = cur.fetchall()
 
         cur.execute("""
@@ -35,7 +94,32 @@ def browse(building_id):
                 'is_closed': row['is_closed']
             }
 
-    return render_template('room/browse.html', building=building, rooms=rooms, working_hours=working_hours, days=DAYS)
+        cur.execute("SELECT id, name FROM amenities ORDER BY name")
+        all_amenities = cur.fetchall()
+
+    time_qs_params = {k: v for k, v in {
+        'date': filter_date_str,
+        'time_from': filter_time_from,
+        'time_to': filter_time_to,
+    }.items() if v}
+    time_qs = ('?' + urlencode(time_qs_params)) if time_qs_params else ''
+
+    return render_template(
+        'room/browse.html',
+        building=building,
+        rooms=rooms,
+        working_hours=working_hours,
+        days=DAYS,
+        all_amenities=all_amenities,
+        filter_date=filter_date_str or '',
+        filter_time_from=filter_time_from or '',
+        filter_time_to=filter_time_to or '',
+        filter_amenity_ids=filter_amenity_ids,
+        filter_size_min=filter_size_min or '',
+        filter_size_max=filter_size_max or '',
+        filter_capacity_min=filter_capacity_min or '',
+        time_qs=time_qs,
+    )
 
 
 @room_bp.route('/buildings/<int:building_id>/rooms/new', methods=['GET', 'POST'])
@@ -57,7 +141,8 @@ def new_room(building_id):
             size = request.form.get('size')
             capacity = request.form.get('capacity')
             selected_amenity_ids = request.form.getlist('amenity_ids')
-            new_amenity_names = [n.strip().lower() for n in request.form.get('new_amenities', '').split(',') if n.strip()]
+            new_amenity_names = [n.strip().lower() for n in request.form.get('new_amenities', '').split(',') if
+                                 n.strip()]
 
             error = None
             try:
@@ -72,16 +157,19 @@ def new_room(building_id):
 
             if error:
                 flash(error, 'error')
-                return render_template('room/form.html', building=building, room=None, all_amenities=all_amenities, room_amenity_ids=set())
+                return render_template('room/form.html', building=building, room=None, all_amenities=all_amenities,
+                                       room_amenity_ids=set())
 
             photo = request.files.get('photo')
             if photo and photo.filename:
                 if not allowed_file(photo.filename):
                     flash('Недопустимый формат файла. Разрешены JPEG, PNG, WebP.', 'error')
-                    return render_template('room/form.html', building=building, room=None, all_amenities=all_amenities, room_amenity_ids=set())
+                    return render_template('room/form.html', building=building, room=None, all_amenities=all_amenities,
+                                           room_amenity_ids=set())
                 if photo.content_length and photo.content_length > MAX_PHOTO_SIZE:
-                    flash(f'Файл слишком большой. Максимальный размер: {MAX_PHOTO_SIZE // (1024*1024)} МБ.', 'error')
-                    return render_template('room/form.html', building=building, room=None, all_amenities=all_amenities, room_amenity_ids=set())
+                    flash(f'Файл слишком большой. Максимальный размер: {MAX_PHOTO_SIZE // (1024 * 1024)} МБ.', 'error')
+                    return render_template('room/form.html', building=building, room=None, all_amenities=all_amenities,
+                                           room_amenity_ids=set())
 
             try:
                 with get_db_cursor(commit=True) as cur2:
@@ -117,9 +205,11 @@ def new_room(building_id):
                     flash('Комната с таким названием уже существует в этом здании.', 'error')
                 else:
                     flash(f'Ошибка при добавлении: {e}', 'error')
-                return render_template('room/form.html', building=building, room=None, all_amenities=all_amenities, room_amenity_ids=set())
+                return render_template('room/form.html', building=building, room=None, all_amenities=all_amenities,
+                                       room_amenity_ids=set())
 
-    return render_template('room/form.html', building=building, room=None, all_amenities=all_amenities, room_amenity_ids=set())
+    return render_template('room/form.html', building=building, room=None, all_amenities=all_amenities,
+                           room_amenity_ids=set())
 
 
 @room_bp.route('/rooms/<int:id>/edit', methods=['GET', 'POST'])
@@ -149,7 +239,8 @@ def edit_room(id):
             size = request.form.get('size')
             capacity = request.form.get('capacity')
             selected_amenity_ids = request.form.getlist('amenity_ids')
-            new_amenity_names = [n.strip().lower() for n in request.form.get('new_amenities', '').split(',') if n.strip()]
+            new_amenity_names = [n.strip().lower() for n in request.form.get('new_amenities', '').split(',') if
+                                 n.strip()]
 
             error = None
             try:
@@ -164,16 +255,19 @@ def edit_room(id):
 
             if error:
                 flash(error, 'error')
-                return render_template('room/form.html', building=room, room=room, all_amenities=all_amenities, room_amenity_ids=room_amenity_ids)
+                return render_template('room/form.html', building=room, room=room, all_amenities=all_amenities,
+                                       room_amenity_ids=room_amenity_ids)
 
             photo = request.files.get('photo')
             if photo and photo.filename:
                 if not allowed_file(photo.filename):
                     flash('Недопустимый формат файла. Разрешены JPEG, PNG, WebP.', 'error')
-                    return render_template('room/form.html', building=room, room=room, all_amenities=all_amenities, room_amenity_ids=room_amenity_ids)
+                    return render_template('room/form.html', building=room, room=room, all_amenities=all_amenities,
+                                           room_amenity_ids=room_amenity_ids)
                 if photo.content_length and photo.content_length > MAX_PHOTO_SIZE:
-                    flash(f'Файл слишком большой. Максимальный размер: {MAX_PHOTO_SIZE // (1024*1024)} МБ.', 'error')
-                    return render_template('room/form.html', building=room, room=room, all_amenities=all_amenities, room_amenity_ids=room_amenity_ids)
+                    flash(f'Файл слишком большой. Максимальный размер: {MAX_PHOTO_SIZE // (1024 * 1024)} МБ.', 'error')
+                    return render_template('room/form.html', building=room, room=room, all_amenities=all_amenities,
+                                           room_amenity_ids=room_amenity_ids)
 
             try:
                 with get_db_cursor(commit=True) as cur2:
@@ -210,9 +304,11 @@ def edit_room(id):
                     flash('Комната с таким названием уже существует в этом здании.', 'error')
                 else:
                     flash(f'Ошибка при обновлении: {e}', 'error')
-                return render_template('room/form.html', building=room, room=room, all_amenities=all_amenities, room_amenity_ids=room_amenity_ids)
+                return render_template('room/form.html', building=room, room=room, all_amenities=all_amenities,
+                                       room_amenity_ids=room_amenity_ids)
 
-    return render_template('room/form.html', building=room, room=room, all_amenities=all_amenities, room_amenity_ids=room_amenity_ids)
+    return render_template('room/form.html', building=room, room=room, all_amenities=all_amenities,
+                           room_amenity_ids=room_amenity_ids)
 
 
 @room_bp.route('/rooms/<int:id>/delete', methods=['POST'])
@@ -229,6 +325,7 @@ def delete_room(id):
 
     flash('Комната удалена.', 'success')
     return redirect(url_for('room.browse', building_id=building_id))
+
 
 @room_bp.route('/rooms/<int:id>')
 def view_room(id):

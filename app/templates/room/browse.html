@@ -29,9 +29,7 @@
     <table class="hours-table hours-table-h">
         <thead>
             <tr>
-                {% for day in days %}
-                <th>{{ day_names[day] }}</th>
-                {% endfor %}
+                {% for day in days %}<th>{{ day_names[day] }}</th>{% endfor %}
             </tr>
         </thead>
         <tbody>
@@ -51,19 +49,83 @@
     </table>
     {% endif %}
 
+    {% set active_count = (1 if filter_date else 0) + (filter_amenity_ids|length) + (1 if filter_size_min else 0) + (1 if filter_size_max else 0) + (1 if filter_capacity_min else 0) %}
+    <details class="filter-panel" {% if active_count > 0 %}open{% endif %}>
+        <summary class="filter-toggle">
+            Фильтры{% if active_count > 0 %} <span class="filter-badge">{{ active_count }}</span>{% endif %}
+        </summary>
+        <form method="get" action="" class="filter-body">
+
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label class="filter-label" for="f-date">Дата</label>
+                    <input type="date" id="f-date" name="date" value="{{ filter_date }}" class="filter-input">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label" for="f-time-from">Время от</label>
+                    <input type="time" id="f-time-from" name="time_from" value="{{ filter_time_from }}"
+                           step="600" class="filter-input filter-input-sm">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label" for="f-time-to">до</label>
+                    <input type="time" id="f-time-to" name="time_to" value="{{ filter_time_to }}"
+                           step="600" class="filter-input filter-input-sm">
+                </div>
+            </div>
+
+            {% if all_amenities %}
+            <div class="filter-group" style="margin-top:.75rem">
+                <label class="filter-label">Удобства</label>
+                <div class="checkbox-list">
+                    {% for amenity in all_amenities %}{% if amenity.id in filter_amenity_ids %}
+                    <label class="checkbox-list-item"><input type="checkbox" name="amenity_ids" value="{{ amenity.id }}" checked> {{ amenity.name }}</label>
+                    {% endif %}{% endfor %}
+                    {% for amenity in all_amenities %}{% if amenity.id not in filter_amenity_ids %}
+                    <label class="checkbox-list-item"><input type="checkbox" name="amenity_ids" value="{{ amenity.id }}"> {{ amenity.name }}</label>
+                    {% endif %}{% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="filter-row" style="margin-top:.75rem">
+                <div class="filter-group">
+                    <label class="filter-label" for="f-size-min">Размер от (м²)</label>
+                    <input type="number" id="f-size-min" name="size_min" value="{{ filter_size_min }}"
+                           min="0" step="0.1" class="filter-input filter-input-sm">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label" for="f-size-max">до (м²)</label>
+                    <input type="number" id="f-size-max" name="size_max" value="{{ filter_size_max }}"
+                           min="0" step="0.1" class="filter-input filter-input-sm">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label" for="f-cap">Вместимость от</label>
+                    <input type="number" id="f-cap" name="capacity_min" value="{{ filter_capacity_min }}"
+                           min="1" class="filter-input filter-input-sm">
+                </div>
+            </div>
+
+            <div class="filter-actions">
+                <button type="submit" class="submit-btn">Применить</button>
+                <a href="{{ url_for('room.browse', building_id=building.id) }}" class="cancel-link">Сбросить</a>
+            </div>
+        </form>
+    </details>
+
     <div class="cards-grid">
         {% for room in rooms %}
+        {% set view_url = url_for('room.view_room', id=room.id) + time_qs %}
         <div class="card">
             <div class="card-image">
                 {% set image_path = '/static/assets/rooms/' + room.id|string + '.jpeg' %}
-                <a href="{{ url_for('room.view_room', id=room.id) }}">
+                <a href="{{ view_url }}">
                     <img src="{{ image_path }}"
                          alt="{{ room.name }}"
                          onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'image-placeholder\'>🏢</div>';">
                 </a>
             </div>
             <div class="card-content">
-                <h3 class="card-title"><a href="{{ url_for('room.view_room', id=room.id) }}">{{ room.name }}</a></h3>
+                <h3 class="card-title"><a href="{{ view_url }}">{{ room.name }}</a></h3>
                 <div class="status-badge {% if room.is_available_for_booking %}status-positive{% else %}status-negative{% endif %}">
                     {{ "Доступна" if room.is_available_for_booking else "Недоступна" }}
                 </div>
@@ -78,7 +140,7 @@
         </div>
         {% else %}
         <div class="card-empty">
-            <p>Нет комнат для этого здания.</p>
+            <p>Нет комнат, соответствующих фильтрам.</p>
         </div>
         {% endfor %}
     </div>

@@ -1,5 +1,5 @@
 import calendar
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
@@ -333,4 +333,12 @@ def booking_request(room_id):
             return redirect(request.url)
 
     wh = get_working_hours(building_id)
-    return render_template('booking/form.html', room_id=room_id, working_hours=wh, days=DAYS)
+    return render_template(
+        'booking/form.html',
+        room_id=room_id,
+        working_hours=wh,
+        days=DAYS,
+        initial_date=request.args.get('date', ''),
+        initial_start=request.args.get('time_from', ''),
+        initial_end=request.args.get('time_to', ''),
+    )

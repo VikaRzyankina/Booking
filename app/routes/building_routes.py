@@ -1,3 +1,6 @@
+from datetime import date as date_type
+from urllib.parse import urlencode
+
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 
 from app.assets_manager import MAX_PHOTO_SIZE, allowed_file, save_photo
@@ -75,8 +78,47 @@ def save_building_with_hours(cur, building_id, city, street, description, form_d
 def browse():
     user_id = session.get('user_id', 2)
 
+    filter_city = request.args.get('city', '').strip() or None
+    filter_street = request.args.get('street', '').strip() or None
+    filter_date_str = request.args.get('date', '').strip() or None
+    filter_time_from = request.args.get('time_from', '').strip() or None
+    filter_time_to = request.args.get('time_to', '').strip() or None
+
+    day_of_week = None
+    if filter_date_str:
+        try:
+            fd = date_type.fromisoformat(filter_date_str)
+            day_of_week = DAYS[fd.weekday()]
+        except ValueError:
+            filter_date_str = None
+
+    extra_conds = []
+    extra_params = []
+
+    if filter_city:
+        extra_conds.append("city ILIKE %s")
+        extra_params.append(filter_city)
+
+    if filter_street:
+        extra_conds.append("street ILIKE %s")
+        extra_params.append(f'%{filter_street}%')
+
+    if day_of_week:
+        wh_parts = ["wh.building_id = buildings.id", "wh.day_of_week = %s", "NOT wh.is_closed"]
+        wh_params = [day_of_week]
+        if filter_time_from:
+            wh_parts.append("wh.open_time <= %s::time")
+            wh_params.append(filter_time_from)
+        if filter_time_to:
+            wh_parts.append("wh.close_time >= %s::time")
+            wh_params.append(filter_time_to)
+        extra_conds.append(f"EXISTS (SELECT 1 FROM working_hours wh WHERE {' AND '.join(wh_parts)})")
+        extra_params.extend(wh_params)
+
+    extra_where = (' AND ' + ' AND '.join(extra_conds)) if extra_conds else ''
+
     with get_db_cursor() as cur:
-        cur.execute("""
+        cur.execute(f"""
             WITH global_perm AS (
                 SELECT EXISTS (
                     SELECT 1
@@ -89,17 +131,19 @@ def browse():
             )
             SELECT id, city, street, description
             FROM buildings
-            WHERE (SELECT has_global FROM global_perm)
-               OR id IN (
+            WHERE (
+                (SELECT has_global FROM global_perm)
+                OR id IN (
                     SELECT building_id
                     FROM user_permissions
                     WHERE user_id = %s
                       AND permission = 'VIEW'
                       AND building_id IS NOT NULL
                       AND room_id IS NULL
-            )
+                )
+            ){extra_where}
             ORDER BY id
-        """, (user_id, user_id))
+        """, [user_id, user_id] + extra_params)
         buildings = cur.fetchall()
 
         building_ids = [b['id'] for b in buildings]
@@ -120,7 +164,25 @@ def browse():
                     'is_closed': row['is_closed']
                 }
 
-    return render_template('building/browse.html', buildings=buildings, working_hours_map=working_hours_map, days=DAYS)
+    time_qs_params = {k: v for k, v in {
+        'date': filter_date_str,
+        'time_from': filter_time_from,
+        'time_to': filter_time_to,
+    }.items() if v}
+    time_qs = ('?' + urlencode(time_qs_params)) if time_qs_params else ''
+
+    return render_template(
+        'building/browse.html',
+        buildings=buildings,
+        working_hours_map=working_hours_map,
+        days=DAYS,
+        filter_city=filter_city or '',
+        filter_street=filter_street or '',
+        filter_date=filter_date_str or '',
+        filter_time_from=filter_time_from or '',
+        filter_time_to=filter_time_to or '',
+        time_qs=time_qs,
+    )
 
 
 @building_bp.route('/buildings/new', methods=['GET', 'POST'])
@@ -140,7 +202,7 @@ def new_building():
                 flash('Недопустимый формат файла. Разрешены JPEG, PNG, WebP.', 'error')
                 return render_template('building/form.html', building=None, days=DAYS, working_hours={})
             if photo.content_length and photo.content_length > MAX_PHOTO_SIZE:
-                flash(f'Файл слишком большой. Максимальный размер: {MAX_PHOTO_SIZE // (1024*1024)} МБ.', 'error')
+                flash(f'Файл слишком большой. Максимальный размер: {MAX_PHOTO_SIZE // (1024 * 1024)} МБ.', 'error')
                 return render_template('building/form.html', building=None, days=DAYS, working_hours={})
 
         try:
@@ -183,7 +245,7 @@ def edit_building(id):
                 current_hours = get_working_hours(id)
                 return render_template('building/form.html', building=building, days=DAYS, working_hours=current_hours)
             if photo.content_length and photo.content_length > MAX_PHOTO_SIZE:
-                flash(f'Файл слишком большой. Максимальный размер: {MAX_PHOTO_SIZE // (1024*1024)} МБ.', 'error')
+                flash(f'Файл слишком большой. Максимальный размер: {MAX_PHOTO_SIZE // (1024 * 1024)} МБ.', 'error')
                 current_hours = get_working_hours(id)
                 return render_template('building/form.html', building=building, days=DAYS, working_hours=current_hours)
 
