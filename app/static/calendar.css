@@ -1,0 +1,196 @@
+.cal-wrap {
+    display: flex;
+    gap: 1.25rem;
+    margin-bottom: 1.25rem;
+    align-items: flex-start;
+    flex-wrap: wrap;
+}
+
+.cal-panel {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: .625rem;
+    padding: 1rem;
+    flex-shrink: 0;
+}
+
+.cal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: .75rem;
+    gap: .5rem;
+}
+
+.cal-title {
+    font-weight: 600;
+    font-size: 1rem;
+    white-space: nowrap;
+}
+
+.cal-nav {
+    background: var(--subtle);
+    border: 1px solid var(--border);
+    border-radius: .375rem;
+    padding: .2rem .6rem;
+    cursor: pointer;
+    font-size: 1.1rem;
+    color: var(--muted);
+    transition: background .15s;
+    line-height: 1;
+}
+.cal-nav:hover { background: var(--border); color: var(--text); }
+
+.cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 2.4rem);
+    gap: 2px;
+    text-align: center;
+}
+
+.cal-dow {
+    font-size: .7rem;
+    font-weight: 600;
+    color: var(--muted);
+    padding: .3rem 0;
+    text-transform: uppercase;
+}
+
+.cal-day {
+    padding: .45rem 0;
+    border-radius: .375rem;
+    font-size: .85rem;
+    border: 1.5px solid transparent;
+    line-height: 1.2;
+    cursor: default;
+    user-select: none;
+}
+
+.cal-day.clickable {
+    cursor: pointer;
+    transition: background .1s;
+}
+.cal-day.clickable:hover { background: var(--subtle); }
+
+.cal-day.today  { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.cal-day.past   { color: #cbd5e1; }
+.cal-day.closed { color: #94a3b8; background: #e2e8f0; }
+.cal-day.selected {
+    background: var(--accent) !important;
+    color: #fff !important;
+    border-color: transparent !important;
+    font-weight: 600;
+}
+
+.cal-legend {
+    display: flex;
+    gap: 1rem;
+    margin-top: .75rem;
+    font-size: .75rem;
+    color: var(--muted);
+    flex-wrap: wrap;
+}
+
+.legend-dot {
+    display: inline-block;
+    width: .85rem;
+    height: .85rem;
+    border-radius: .2rem;
+    vertical-align: middle;
+    margin-right: .25rem;
+}
+.legend-dot.closed { background: #f1f5f9; border: 1px solid var(--border); }
+
+.slots-panel {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: .625rem;
+    padding: 1rem;
+    min-width: 300px;
+    flex: 1;
+    display: none;
+}
+.slots-panel.visible { display: block; }
+
+.slots-header-row {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-bottom: 3px;
+    padding-left: 0;
+}
+
+.slots-col-label {
+    flex: 1;
+    text-align: center;
+    font-size: .65rem;
+    font-weight: 600;
+    color: var(--muted);
+}
+
+.slots-hours {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.slots-row {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.slots-hour-label {
+    width: 1.6rem;
+    flex-shrink: 0;
+    font-size: .72rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-align: right;
+    padding-right: .2rem;
+}
+
+.slot {
+    flex: 1;
+    padding: .3rem 0;
+    border-radius: .25rem;
+    font-size: .72rem;
+    text-align: center;
+    cursor: pointer;
+    border: 1.5px solid #e2e8f0;
+    background: #fff;
+    color: #475569;
+    transition: background .1s, border-color .1s;
+    font-family: inherit;
+}
+.slot:hover:not(:disabled) { background: #f1f5f9; border-color: #94a3b8; }
+.slot:disabled { cursor: default; }
+.slot.slot-busy, .slot.slot-closed { background: #f1f5f9 !important; color: #94a3b8 !important; border-color: #e2e8f0 !important; }
+.slot.slot-busy { text-decoration: line-through; }
+.slot.slot-past { background: #f8fafc !important; color: #cbd5e1 !important; border-color: #f1f5f9 !important; }
+.slot.slot-start, .slot.slot-end { background: var(--accent) !important; color: #fff !important; border-color: var(--accent) !important; }
+.slot.slot-start { border-radius: .25rem 0 0 .25rem !important; }
+.slot.slot-start-pending { border-radius: .25rem !important; opacity: .85; }
+.slot.slot-range { background: #bfdbfe !important; color: #1e40af !important; border-color: #93c5fd !important; border-radius: 0 !important; }
+.slot.slot-end { border-radius: 0 .25rem .25rem 0 !important; }
+
+.cal-selected-display {
+    margin-bottom: 1rem;
+    padding: .6rem .75rem;
+    background: #eff6ff;
+    border-left: 3px solid var(--accent);
+    border-radius: .375rem;
+    font-size: .9rem;
+    color: #1e40af;
+    font-weight: 500;
+    display: none;
+}
+.cal-selected-display.visible { display: block; }
+
+.cal-hint {
+    font-weight: 400;
+    opacity: .7;
+    font-style: italic;
+}

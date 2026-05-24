@@ -1,7 +1,8 @@
-from datetime import datetime, timedelta
+import calendar
+from datetime import datetime, timedelta, date
 from zoneinfo import ZoneInfo
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 
 from app.db import get_db_cursor, DAYS
 from app.routes.building_routes import get_working_hours
@@ -67,6 +68,62 @@ def is_available(building_id, room_id, entry_time, exit_time):
         current_date += one_day
 
     return True
+
+
+@booking_bp.route('/booking/<int:room_id>/availability')
+def room_availability(room_id):
+    year = request.args.get('year', type=int)
+    month = request.args.get('month', type=int)
+    if not year or not month:
+        now = datetime.now(TZ)
+        year, month = now.year, now.month
+
+    building_id = get_building(room_id)
+    first_day = datetime(year, month, 1, tzinfo=TZ)
+    last_day = datetime(year, month, calendar.monthrange(year, month)[1], 23, 59, 59, tzinfo=TZ)
+
+    with get_db_cursor() as cur:
+        cur.execute("""
+            SELECT entry_time, exit_time
+            FROM bookings
+            WHERE room_id = %s
+              AND is_accepted = TRUE
+              AND exit_time > %s
+              AND entry_time < %s
+            ORDER BY entry_time
+        """, (room_id, first_day, last_day))
+        rows = cur.fetchall()
+
+    bookings = {}
+    for row in rows:
+        entry = row['entry_time']
+        exit_ = row['exit_time']
+        if entry.tzinfo is None:
+            entry = entry.replace(tzinfo=TZ)
+        else:
+            entry = entry.astimezone(TZ)
+        if exit_.tzinfo is None:
+            exit_ = exit_.replace(tzinfo=TZ)
+        else:
+            exit_ = exit_.astimezone(TZ)
+        day_key = entry.date().isoformat()
+        bookings.setdefault(day_key, []).append({
+            'entry': entry.strftime('%H:%M'),
+            'exit': exit_.strftime('%H:%M'),
+        })
+
+    wh_raw = get_working_hours(building_id) if building_id else {}
+    working_hours = {}
+    for iso_dow, day_name in enumerate(DAYS):
+        wh = wh_raw.get(day_name)
+        if wh:
+            working_hours[str(iso_dow)] = {
+                'closed': bool(wh['is_closed']),
+                'open': wh['open_time'].strftime('%H:%M') if not wh['is_closed'] else None,
+                'close': wh['close_time'].strftime('%H:%M') if not wh['is_closed'] else None,
+            }
+
+    return jsonify({'bookings': bookings, 'working_hours': working_hours})
 
 
 @booking_bp.route('/booking/my')
@@ -238,6 +295,14 @@ def booking_request(room_id):
             booking_start = datetime.strptime(booking_start_str, '%Y-%m-%dT%H:%M')
             booking_time = int(booking_time_str)
 
+            if booking_start.minute % 10 != 0:
+                flash('Время начала должно быть кратно 10 минутам.', 'error')
+                return redirect(request.url)
+
+            if booking_time <= 0 or booking_time % 10 != 0:
+                flash('Продолжительность должна быть кратна 10 минутам.', 'error')
+                return redirect(request.url)
+
             entry_time = booking_start.replace(tzinfo=TZ)
             exit_time = entry_time + timedelta(minutes=booking_time)
 
@@ -258,7 +323,7 @@ def booking_request(room_id):
                 """, (room_id, user_id, entry_time, exit_time, room_id))
 
             flash('Заявка на бронирование успешно создана.', 'success')
-            return redirect(url_for('room.browse', building_id=building_id))
+            return redirect(url_for('room.view_room', id=room_id))
 
         except (ValueError, TypeError) as e:
             flash(f'Ошибка в формате данных: {e}', 'error')
@@ -267,4 +332,5 @@ def booking_request(room_id):
             flash(f'Ошибка при сохранении бронирования: {e}', 'error')
             return redirect(request.url)
 
-    return render_template('booking/form.html', room_id=room_id)
+    wh = get_working_hours(building_id)
+    return render_template('booking/form.html', room_id=room_id, working_hours=wh, days=DAYS)
