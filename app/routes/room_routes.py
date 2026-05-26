@@ -6,11 +6,20 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 
 from app.assets_manager import save_photo, allowed_file, MAX_PHOTO_SIZE
 from app.db import get_db_cursor, DAYS
-from app.permissions import check_permission, require_permission, VIEW, CREATE_ROOM, MANAGE_ROOM
+from app.permissions import (check_permission, require_permission, grant_permission, check_granting,
+                             revoke_permission, PERMISSION_LABELS,
+                             VIEW, CREATE_ROOM, MANAGE_ROOM, MANAGE_BOOKING_REQUESTS, REQUEST_BOOKING)
 
 TZ = ZoneInfo('Europe/Moscow')
 
 room_bp = Blueprint('room', __name__, url_prefix='/')
+
+_ROOM_PERM_LABELS = [
+    (VIEW, 'Просмотр'),
+    (MANAGE_ROOM, 'Управление комнатой'),
+    (REQUEST_BOOKING, 'Бронирование'),
+    (MANAGE_BOOKING_REQUESTS, 'Управление бронированиями'),
+]
 
 
 @room_bp.route('/buildings/<int:building_id>/browse')
@@ -186,7 +195,7 @@ def new_room(building_id):
             if error:
                 flash(error, 'error')
                 return render_template('room/form.html', building=building, room=None, all_amenities=all_amenities,
-                                       room_amenity_ids=set())
+                                       room_amenity_ids=set(), grantable_permissions=[])
 
             photo = request.files.get('photo')
             if photo and photo.filename:
@@ -234,7 +243,7 @@ def new_room(building_id):
                 else:
                     flash(f'Ошибка при добавлении: {e}', 'error')
                 return render_template('room/form.html', building=building, room=None, all_amenities=all_amenities,
-                                       room_amenity_ids=set())
+                                       room_amenity_ids=set(), grantable_permissions=[])
 
     return render_template('room/form.html', building=building, room=None, all_amenities=all_amenities,
                            room_amenity_ids=set())
@@ -260,6 +269,21 @@ def edit_room(id):
 
         if not check_permission(user_id, MANAGE_ROOM, building_id=room['building_id'], room_id=id):
             abort(403)
+
+        grantable_permissions = [
+            {'value': p, 'label': l}
+            for p, l in _ROOM_PERM_LABELS
+            if check_granting(user_id, p, building_id=room['building_id'], room_id=id)
+        ]
+
+        cur.execute("""
+            SELECT u.id as user_id, u.login, u.full_name, up.permission, up.granting
+            FROM user_permissions up
+            JOIN users u ON u.id = up.user_id
+            WHERE up.building_id = %s AND up.room_id = %s
+            ORDER BY u.login, up.permission
+        """, (room['building_id'], id))
+        room_permissions = cur.fetchall()
 
         cur.execute("SELECT id, name FROM amenities ORDER BY name")
         all_amenities = cur.fetchall()
@@ -292,7 +316,10 @@ def edit_room(id):
             if error:
                 flash(error, 'error')
                 return render_template('room/form.html', building=room, room=room, all_amenities=all_amenities,
-                                       room_amenity_ids=room_amenity_ids)
+                                       room_amenity_ids=room_amenity_ids,
+                                       grantable_permissions=grantable_permissions,
+                                       room_permissions=room_permissions,
+                                       perm_labels=PERMISSION_LABELS)
 
             photo = request.files.get('photo')
             if photo and photo.filename:
@@ -341,10 +368,87 @@ def edit_room(id):
                 else:
                     flash(f'Ошибка при обновлении: {e}', 'error')
                 return render_template('room/form.html', building=room, room=room, all_amenities=all_amenities,
-                                       room_amenity_ids=room_amenity_ids)
+                                       room_amenity_ids=room_amenity_ids,
+                                       grantable_permissions=grantable_permissions,
+                                       room_permissions=room_permissions,
+                                       perm_labels=PERMISSION_LABELS)
 
     return render_template('room/form.html', building=room, room=room, all_amenities=all_amenities,
-                           room_amenity_ids=room_amenity_ids)
+                           room_amenity_ids=room_amenity_ids,
+                           grantable_permissions=grantable_permissions,
+                           room_permissions=room_permissions,
+                           perm_labels=PERMISSION_LABELS)
+
+
+@room_bp.route('/rooms/<int:id>/grant', methods=['POST'])
+def grant_room_permission(id):
+    user_id = session.get('user_id')
+    if not user_id:
+        flash('Необходима авторизация.', 'error')
+        return redirect(url_for('user.login'))
+
+    with get_db_cursor() as cur:
+        cur.execute("""
+            SELECT r.building_id FROM rooms r WHERE r.id = %s
+        """, (id,))
+        row = cur.fetchone()
+
+    if not row:
+        abort(404)
+    building_id = row['building_id']
+
+    login = request.form.get('login', '').strip()
+    permission = request.form.get('permission', '').strip()
+
+    allowed = {p for p, _ in _ROOM_PERM_LABELS}
+    if not login:
+        flash('Укажите логин пользователя.', 'error')
+        return redirect(url_for('room.edit_room', id=id))
+    if permission not in allowed:
+        flash('Недопустимое право.', 'error')
+        return redirect(url_for('room.edit_room', id=id))
+
+    with get_db_cursor() as cur:
+        cur.execute("SELECT id FROM users WHERE login = %s", (login,))
+        target = cur.fetchone()
+
+    if not target:
+        flash(f'Пользователь {login} не найден.', 'error')
+        return redirect(url_for('room.edit_room', id=id))
+
+    success = grant_permission(user_id, target['id'], permission, building_id=building_id, room_id=id)
+    if success:
+        label = next(l for p, l in _ROOM_PERM_LABELS if p == permission)
+        flash(f'Право {label} выдано пользователю {login}.', 'success')
+    else:
+        flash('Не удалось выдать право. Возможно, оно уже выдано или у вас нет прав на это действие.', 'error')
+    return redirect(url_for('room.edit_room', id=id))
+
+
+@room_bp.route('/rooms/<int:id>/revoke', methods=['POST'])
+def revoke_room_permission(id):
+    user_id = session.get('user_id')
+    if not user_id:
+        flash('Необходима авторизация.', 'error')
+        return redirect(url_for('user.login'))
+    with get_db_cursor() as cur:
+        cur.execute("SELECT building_id FROM rooms WHERE id = %s", (id,))
+        row = cur.fetchone()
+    if not row:
+        abort(404)
+    building_id = row['building_id']
+    target_user_id = request.form.get('target_user_id', type=int)
+    permission = request.form.get('permission', '').strip()
+    allowed = {p for p, _ in _ROOM_PERM_LABELS}
+    if not target_user_id or permission not in allowed:
+        flash('Некорректные данные.', 'error')
+        return redirect(url_for('room.edit_room', id=id))
+    success = revoke_permission(user_id, target_user_id, permission, building_id=building_id, room_id=id)
+    if success:
+        flash('Право изъято.', 'success')
+    else:
+        flash('Не удалось изъять право.', 'error')
+    return redirect(url_for('room.edit_room', id=id))
 
 
 @room_bp.route('/rooms/<int:id>/delete', methods=['POST'])

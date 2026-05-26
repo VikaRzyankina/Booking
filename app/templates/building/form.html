@@ -90,6 +90,69 @@
         </div>
     </form>
 
+    {% if building and building.id and grantable_permissions %}
+    {% set grantable_values = grantable_permissions | map(attribute='value') | list %}
+    <section style="margin-top:2rem">
+        <h2>Права на здание</h2>
+
+        <h3 style="margin-top:.75rem">Выдать право</h3>
+        <form method="post" action="{{ url_for('building.grant_building_permission', id=building.id) }}"
+              class="generic-form" style="margin-top:0">
+            <div class="form-group">
+                <label for="grant-login">Логин пользователя:</label>
+                <input type="text" id="grant-login" name="login" placeholder="Введите логин"
+                       required autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="grant-permission">Право:</label>
+                <select id="grant-permission" name="permission">
+                    {% for perm in grantable_permissions %}
+                    <option value="{{ perm.value }}">{{ perm.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="submit-btn">Выдать</button>
+            </div>
+        </form>
+
+        {% if building_permissions %}
+        <table class="hours-table" style="width:100%;margin-top:1.5rem">
+            <thead>
+                <tr>
+                    <th style="text-align:left;padding:.4rem .6rem">Логин</th>
+                    <th style="text-align:left;padding:.4rem .6rem">Имя</th>
+                    <th style="text-align:left;padding:.4rem .6rem">Право</th>
+                    <th style="text-align:center;padding:.4rem .6rem">Может выдавать</th>
+                    <th style="padding:.4rem .6rem"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in building_permissions %}
+                <tr>
+                    <td style="padding:.4rem .6rem">{{ p.login }}</td>
+                    <td style="padding:.4rem .6rem">{{ p.full_name }}</td>
+                    <td style="padding:.4rem .6rem">{{ perm_labels.get(p.permission, p.permission) }}</td>
+                    <td style="text-align:center;padding:.4rem .6rem">
+                        {% if p.granting %}✓{% else %}—{% endif %}
+                    </td>
+                    <td style="padding:.4rem .6rem">
+                        {% if p.permission in grantable_values %}
+                        <form method="post" action="{{ url_for('building.revoke_building_permission', id=building.id) }}" style="margin:0">
+                            <input type="hidden" name="target_user_id" value="{{ p.user_id }}">
+                            <input type="hidden" name="permission" value="{{ p.permission }}">
+                            <button type="submit" class="danger-btn">Изъять</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </section>
+    {% endif %}
+
     <script>
         function toggleTimeFields(checkbox, day) {
             var openField = document.querySelector('input[name="' + day + '_open_time"]');

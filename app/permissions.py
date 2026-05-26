@@ -15,6 +15,16 @@ ALL_PERMISSIONS = [
     VIEW, CREATE_BUILDING, MANAGE_BUILDING, CREATE_ROOM, MANAGE_ROOM, MANAGE_BOOKING_REQUESTS, REQUEST_BOOKING
 ]
 
+PERMISSION_LABELS = {
+    VIEW: 'Просмотр',
+    CREATE_BUILDING: 'Создание зданий',
+    MANAGE_BUILDING: 'Управление зданием',
+    CREATE_ROOM: 'Создание комнат',
+    MANAGE_ROOM: 'Управление комнатой',
+    MANAGE_BOOKING_REQUESTS: 'Управление бронированиями',
+    REQUEST_BOOKING: 'Бронирование',
+}
+
 
 def check_permission(user_id: int, permission: str, building_id: int = None, room_id: int = None) -> bool:
     with get_db_cursor() as cur:
@@ -75,6 +85,54 @@ def grant_permission(granter_id: int, user_id: int, permission: str,
             return True
         except Exception:
             return False
+
+
+def revoke_permission(revoker_id: int, user_id: int, permission: str,
+                      building_id: int = None, room_id: int = None) -> bool:
+    if not check_granting(revoker_id, permission, building_id=building_id, room_id=room_id):
+        return False
+    with get_db_cursor(commit=True) as cur:
+        cur.execute("""
+            DELETE FROM user_permissions
+            WHERE user_id = %s AND permission = %s
+              AND building_id IS NOT DISTINCT FROM %s
+              AND room_id IS NOT DISTINCT FROM %s
+        """, (user_id, permission, building_id, room_id))
+        return cur.rowcount > 0
+
+
+def check_granting(user_id: int, permission: str, building_id: int = None, room_id: int = None) -> bool:
+    with get_db_cursor() as cur:
+        if building_id is None:
+            cur.execute("""
+                SELECT EXISTS (
+                    SELECT 1 FROM user_permissions
+                    WHERE user_id = %s AND permission = %s
+                      AND granting = TRUE AND building_id IS NULL
+                )
+            """, (user_id, permission))
+        elif room_id is None:
+            cur.execute("""
+                SELECT EXISTS (
+                    SELECT 1 FROM user_permissions
+                    WHERE user_id = %s AND permission = %s
+                      AND granting = TRUE
+                      AND (building_id IS NULL OR building_id = %s)
+                )
+            """, (user_id, permission, building_id))
+        else:
+            cur.execute("""
+                SELECT EXISTS (
+                    SELECT 1 FROM user_permissions
+                    WHERE user_id = %s AND permission = %s
+                      AND granting = TRUE
+                      AND (
+                          building_id IS NULL OR
+                          (building_id = %s AND (room_id IS NULL OR room_id = %s))
+                      )
+                )
+            """, (user_id, permission, building_id, room_id))
+        return cur.fetchone()[0]
 
 
 def require_permission(permission, building_id_arg=None, room_id_arg=None):

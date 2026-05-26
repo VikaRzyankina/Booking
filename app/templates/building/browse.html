@@ -13,7 +13,12 @@
 
     <div class="nav-links">
         <a href="{{ url_for('user.user_page') }}" class="back-link">← Назад в профиль</a>
-        <a href="{{ url_for('building.new_building') }}" class="add-link">+ Добавить здание</a>
+        <div style="display:flex;gap:.75rem;align-items:center">
+            {% if can_grant_view %}
+            <a href="{{ url_for('building.view_permissions') }}" class="add-link">Управление правами просмотра</a>
+            {% endif %}
+            <a href="{{ url_for('building.new_building') }}" class="add-link">+ Добавить здание</a>
+        </div>
     </div>
 
     {% set active_count = (1 if filter_city else 0) + (1 if filter_street else 0) + (1 if filter_date else 0) %}

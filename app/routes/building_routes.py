@@ -1,13 +1,22 @@
 from datetime import date as date_type
 from urllib.parse import urlencode
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, abort
 
 from app.assets_manager import MAX_PHOTO_SIZE, allowed_file, save_photo
 from app.db import get_db_cursor, DAYS
-from app.permissions import require_permission, CREATE_BUILDING, MANAGE_BUILDING
+from app.permissions import (require_permission, grant_permission, check_granting, revoke_permission,
+                             PERMISSION_LABELS, VIEW, CREATE_BUILDING, MANAGE_BUILDING, CREATE_ROOM,
+                             MANAGE_BOOKING_REQUESTS)
 
 building_bp = Blueprint('building', __name__, url_prefix='/')
+
+_BUILDING_PERM_LABELS = [
+    (VIEW, 'Просмотр'),
+    (MANAGE_BUILDING, 'Управление зданием'),
+    (CREATE_ROOM, 'Создание комнат'),
+    (MANAGE_BOOKING_REQUESTS, 'Управление бронированиями'),
+]
 
 
 def get_building(building_id):
@@ -172,6 +181,8 @@ def browse():
     }.items() if v}
     time_qs = ('?' + urlencode(time_qs_params)) if time_qs_params else ''
 
+    can_grant_view = bool(user_id != 2 and check_granting(user_id, VIEW))
+
     return render_template(
         'building/browse.html',
         buildings=buildings,
@@ -183,6 +194,7 @@ def browse():
         filter_time_from=filter_time_from or '',
         filter_time_to=filter_time_to or '',
         time_qs=time_qs,
+        can_grant_view=can_grant_view,
     )
 
 
@@ -196,16 +208,16 @@ def new_building():
 
         if not city or not street:
             flash('Город и улица обязательны для заполнения.', 'error')
-            return render_template('building/form.html', building=None, days=DAYS, working_hours={})
+            return render_template('building/form.html', building=None, days=DAYS, working_hours={}, grantable_permissions=[])
 
         photo = request.files.get('photo')
         if photo and photo.filename:
             if not allowed_file(photo.filename):
                 flash('Недопустимый формат файла. Разрешены JPEG, PNG, WebP.', 'error')
-                return render_template('building/form.html', building=None, days=DAYS, working_hours={})
+                return render_template('building/form.html', building=None, days=DAYS, working_hours={}, grantable_permissions=[])
             if photo.content_length and photo.content_length > MAX_PHOTO_SIZE:
                 flash(f'Файл слишком большой. Максимальный размер: {MAX_PHOTO_SIZE // (1024 * 1024)} МБ.', 'error')
-                return render_template('building/form.html', building=None, days=DAYS, working_hours={})
+                return render_template('building/form.html', building=None, days=DAYS, working_hours={}, grantable_permissions=[])
 
         try:
             with get_db_cursor(commit=True) as cur:
@@ -218,9 +230,10 @@ def new_building():
             return redirect(url_for('building.browse'))
         except Exception as e:
             flash(f'Ошибка при сохранении: {str(e)}', 'error')
-            return render_template('building/form.html', building=None, days=DAYS, working_hours={})
+            return render_template('building/form.html', building=None, days=DAYS, working_hours={}, grantable_permissions=[])
     else:
-        return render_template('building/form.html', building=None, days=DAYS, working_hours={})
+        return render_template('building/form.html', building=None, days=DAYS, working_hours={},
+                               grantable_permissions=[])
 
 
 @building_bp.route('/buildings/<int:id>/edit', methods=['GET', 'POST'])
@@ -231,6 +244,23 @@ def edit_building(id):
         flash('Здание не найдено.', 'error')
         return redirect(url_for('building.browse'))
 
+    user_id = session.get('user_id')
+    grantable_permissions = [
+        {'value': p, 'label': l}
+        for p, l in _BUILDING_PERM_LABELS
+        if check_granting(user_id, p, building_id=id)
+    ]
+
+    with get_db_cursor() as cur:
+        cur.execute("""
+            SELECT u.id as user_id, u.login, u.full_name, up.permission, up.granting
+            FROM user_permissions up
+            JOIN users u ON u.id = up.user_id
+            WHERE up.building_id = %s AND up.room_id IS NULL
+            ORDER BY u.login, up.permission
+        """, (id,))
+        building_permissions = cur.fetchall()
+
     if request.method == 'POST':
         city = request.form.get('city', '').strip()
         street = request.form.get('street', '').strip()
@@ -239,18 +269,27 @@ def edit_building(id):
         if not city or not street:
             flash('Город и улица обязательны для заполнения.', 'error')
             current_hours = get_working_hours(id)
-            return render_template('building/form.html', building=building, days=DAYS, working_hours=current_hours)
+            return render_template('building/form.html', building=building, days=DAYS, working_hours=current_hours,
+                                grantable_permissions=grantable_permissions,
+                                building_permissions=building_permissions,
+                                perm_labels=PERMISSION_LABELS)
 
         photo = request.files.get('photo')
         if photo and photo.filename:
             if not allowed_file(photo.filename):
                 flash('Недопустимый формат файла. Разрешены JPEG, PNG, WebP.', 'error')
                 current_hours = get_working_hours(id)
-                return render_template('building/form.html', building=building, days=DAYS, working_hours=current_hours)
+                return render_template('building/form.html', building=building, days=DAYS, working_hours=current_hours,
+                                grantable_permissions=grantable_permissions,
+                                building_permissions=building_permissions,
+                                perm_labels=PERMISSION_LABELS)
             if photo.content_length and photo.content_length > MAX_PHOTO_SIZE:
                 flash(f'Файл слишком большой. Максимальный размер: {MAX_PHOTO_SIZE // (1024 * 1024)} МБ.', 'error')
                 current_hours = get_working_hours(id)
-                return render_template('building/form.html', building=building, days=DAYS, working_hours=current_hours)
+                return render_template('building/form.html', building=building, days=DAYS, working_hours=current_hours,
+                                grantable_permissions=grantable_permissions,
+                                building_permissions=building_permissions,
+                                perm_labels=PERMISSION_LABELS)
 
         try:
             with get_db_cursor(commit=True) as cur:
@@ -264,10 +303,143 @@ def edit_building(id):
         except Exception as e:
             flash(f'Ошибка при сохранении: {str(e)}', 'error')
             current_hours = get_working_hours(id)
-            return render_template('building/form.html', building=building, days=DAYS, working_hours=current_hours)
+            return render_template('building/form.html', building=building, days=DAYS, working_hours=current_hours,
+                                grantable_permissions=grantable_permissions,
+                                building_permissions=building_permissions,
+                                perm_labels=PERMISSION_LABELS)
     else:
         current_hours = get_working_hours(id)
-        return render_template('building/form.html', building=building, days=DAYS, working_hours=current_hours)
+        return render_template('building/form.html', building=building, days=DAYS, working_hours=current_hours,
+                                grantable_permissions=grantable_permissions,
+                                building_permissions=building_permissions,
+                                perm_labels=PERMISSION_LABELS)
+
+
+@building_bp.route('/grant-view', methods=['POST'])
+def grant_global_view():
+    user_id = session.get('user_id')
+    if not user_id:
+        flash('Необходима авторизация.', 'error')
+        return redirect(url_for('user.login'))
+
+    login = request.form.get('login', '').strip()
+    if not login:
+        flash('Укажите логин пользователя.', 'error')
+        return redirect(url_for('building.browse'))
+
+    with get_db_cursor() as cur:
+        cur.execute("SELECT id FROM users WHERE login = %s", (login,))
+        target = cur.fetchone()
+
+    if not target:
+        flash(f'Пользователь {login} не найден.', 'error')
+        return redirect(url_for('building.browse'))
+
+    success = grant_permission(user_id, target['id'], VIEW)
+    if success:
+        flash(f'Право на просмотр зданий выдано пользователю {login}.', 'success')
+    else:
+        flash('Не удалось выдать право. Возможно, оно уже выдано или у вас нет прав на это действие.', 'error')
+    return redirect(url_for('building.view_permissions'))
+
+
+@building_bp.route('/buildings/<int:id>/grant', methods=['POST'])
+def grant_building_permission(id):
+    user_id = session.get('user_id')
+    if not user_id:
+        flash('Необходима авторизация.', 'error')
+        return redirect(url_for('user.login'))
+
+    building = get_building(id)
+    if not building:
+        abort(404)
+
+    login = request.form.get('login', '').strip()
+    permission = request.form.get('permission', '').strip()
+
+    allowed = {p for p, _ in _BUILDING_PERM_LABELS}
+    if not login:
+        flash('Укажите логин пользователя.', 'error')
+        return redirect(url_for('building.edit_building', id=id))
+    if permission not in allowed:
+        flash('Недопустимое право.', 'error')
+        return redirect(url_for('building.edit_building', id=id))
+
+    with get_db_cursor() as cur:
+        cur.execute("SELECT id FROM users WHERE login = %s", (login,))
+        target = cur.fetchone()
+
+    if not target:
+        flash(f'Пользователь {login} не найден.', 'error')
+        return redirect(url_for('building.edit_building', id=id))
+
+    success = grant_permission(user_id, target['id'], permission, building_id=id)
+    if success:
+        label = next(l for p, l in _BUILDING_PERM_LABELS if p == permission)
+        flash(f'Право {label} выдано пользователю {login}.', 'success')
+    else:
+        flash('Не удалось выдать право. Возможно, оно уже выдано или у вас нет прав на это действие.', 'error')
+    return redirect(url_for('building.edit_building', id=id))
+
+
+@building_bp.route('/permissions/view')
+def view_permissions():
+    user_id = session.get('user_id')
+    if not user_id:
+        flash('Необходима авторизация.', 'error')
+        return redirect(url_for('user.login'))
+    if not check_granting(user_id, VIEW):
+        abort(403)
+    with get_db_cursor() as cur:
+        cur.execute("""
+            SELECT u.id as user_id, u.login, u.full_name, up.granting
+            FROM user_permissions up
+            JOIN users u ON u.id = up.user_id
+            WHERE up.permission = 'VIEW' AND up.building_id IS NULL AND up.room_id IS NULL
+            ORDER BY u.login
+        """)
+        view_holders = cur.fetchall()
+    return render_template('building/view_permissions.html', view_holders=view_holders)
+
+
+@building_bp.route('/revoke-view', methods=['POST'])
+def revoke_global_view():
+    user_id = session.get('user_id')
+    if not user_id:
+        flash('Необходима авторизация.', 'error')
+        return redirect(url_for('user.login'))
+    target_user_id = request.form.get('target_user_id', type=int)
+    if not target_user_id:
+        flash('Некорректные данные.', 'error')
+        return redirect(url_for('building.view_permissions'))
+    success = revoke_permission(user_id, target_user_id, VIEW)
+    if success:
+        flash('Право на просмотр зданий изъято.', 'success')
+    else:
+        flash('Не удалось изъять право.', 'error')
+    return redirect(url_for('building.view_permissions'))
+
+
+@building_bp.route('/buildings/<int:id>/revoke', methods=['POST'])
+def revoke_building_permission(id):
+    user_id = session.get('user_id')
+    if not user_id:
+        flash('Необходима авторизация.', 'error')
+        return redirect(url_for('user.login'))
+    if not get_building(id):
+        abort(404)
+    target_user_id = request.form.get('target_user_id', type=int)
+    permission = request.form.get('permission', '').strip()
+    allowed = {p for p, _ in _BUILDING_PERM_LABELS}
+    if not target_user_id or permission not in allowed:
+        flash('Некорректные данные.', 'error')
+        return redirect(url_for('building.edit_building', id=id))
+    success = revoke_permission(user_id, target_user_id, permission, building_id=id)
+    if success:
+        flash('Право изъято.', 'success')
+    else:
+        flash('Не удалось изъять право.', 'error')
+    return redirect(url_for('building.edit_building', id=id))
 
 
 @building_bp.route('/buildings/<int:id>/delete', methods=['GET', 'POST'])

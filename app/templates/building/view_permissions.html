@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Права на просмотр зданий</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>Глобальное право на просмотр зданий</h1>
+    {% from 'flash_macro.html' import show_flashes %}
+    {{ show_flashes() }}
+
+    <div class="nav-links">
+        <a href="{{ url_for('building.browse') }}" class="back-link">← Назад к зданиям</a>
+    </div>
+
+    <section style="margin-top:1.5rem">
+        <h2>Выдать право</h2>
+        <form method="post" action="{{ url_for('building.grant_global_view') }}" class="generic-form" style="margin-top:0">
+            <div class="form-group">
+                <label for="grant-login">Логин пользователя:</label>
+                <input type="text" id="grant-login" name="login" placeholder="Введите логин"
+                       required autocomplete="off">
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="submit-btn">Выдать</button>
+            </div>
+        </form>
+    </section>
+
+    <section style="margin-top:2rem">
+        <h2>Текущие держатели права</h2>
+        {% if view_holders %}
+        <table class="hours-table" style="width:100%;margin-top:.75rem">
+            <thead>
+                <tr>
+                    <th style="text-align:left;padding:.4rem .6rem">Логин</th>
+                    <th style="text-align:left;padding:.4rem .6rem">Имя</th>
+                    <th style="text-align:center;padding:.4rem .6rem">Может выдавать</th>
+                    <th style="padding:.4rem .6rem"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for h in view_holders %}
+                <tr>
+                    <td style="padding:.4rem .6rem">{{ h.login }}</td>
+                    <td style="padding:.4rem .6rem">{{ h.full_name }}</td>
+                    <td style="text-align:center;padding:.4rem .6rem">
+                        {% if h.granting %}✓{% else %}—{% endif %}
+                    </td>
+                    <td style="padding:.4rem .6rem">
+                        <form method="post" action="{{ url_for('building.revoke_global_view') }}" style="margin:0">
+                            <input type="hidden" name="target_user_id" value="{{ h.user_id }}">
+                            <button type="submit" class="danger-btn">Изъять</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="color:var(--muted);margin-top:.75rem">Никто ещё не имеет этого права.</p>
+        {% endif %}
+    </section>
+</body>
+</html>
