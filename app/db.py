@@ -1,6 +1,7 @@
 import psycopg2
 import psycopg2.extras
 from contextlib import contextmanager
+from zoneinfo import ZoneInfo
 
 DB_CONFIG = {
     'host': 'localhost',
@@ -11,6 +12,7 @@ DB_CONFIG = {
 }
 
 DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+TZ = ZoneInfo('Europe/Moscow')
 
 
 def get_db_connection():

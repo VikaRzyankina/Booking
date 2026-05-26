@@ -11,6 +11,16 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+def validate_photo(photo):
+    if not photo or not photo.filename:
+        return None
+    if not allowed_file(photo.filename):
+        return 'Недопустимый формат файла. Разрешены JPEG, PNG, WebP.'
+    if photo.content_length and photo.content_length > MAX_PHOTO_SIZE:
+        return f'Файл слишком большой. Максимальный размер: {MAX_PHOTO_SIZE // (1024 * 1024)} МБ.'
+    return None
+
+
 def save_photo(photo, subfolder, filename):
     upload_folder = os.path.join(current_app.static_folder, 'assets', subfolder)
     os.makedirs(upload_folder, exist_ok=True)

@@ -3,20 +3,15 @@ from urllib.parse import urlencode
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, abort
 
-from app.assets_manager import MAX_PHOTO_SIZE, allowed_file, save_photo
+from app.assets_manager import save_photo, validate_photo
 from app.db import get_db_cursor, DAYS
-from app.permissions import (require_permission, grant_permission, check_granting, revoke_permission,
-                             PERMISSION_LABELS, VIEW, CREATE_BUILDING, MANAGE_BUILDING, CREATE_ROOM,
-                             MANAGE_BOOKING_REQUESTS)
+from app.permissions import (require_permission, login_required, grant_permission, check_granting,
+                             revoke_permission, PERMISSION_LABELS, VIEW, CREATE_BUILDING,
+                             MANAGE_BUILDING, CREATE_ROOM, MANAGE_BOOKING_REQUESTS)
 
 building_bp = Blueprint('building', __name__, url_prefix='/')
 
-_BUILDING_PERM_LABELS = [
-    (VIEW, 'Просмотр'),
-    (MANAGE_BUILDING, 'Управление зданием'),
-    (CREATE_ROOM, 'Создание комнат'),
-    (MANAGE_BOOKING_REQUESTS, 'Управление бронированиями'),
-]
+_BUILDING_PERM_LABELS = [(p, PERMISSION_LABELS[p]) for p in [VIEW, MANAGE_BUILDING, CREATE_ROOM, MANAGE_BOOKING_REQUESTS]]
 
 
 def get_building(building_id):
@@ -201,6 +196,10 @@ def browse():
 @building_bp.route('/buildings/new', methods=['GET', 'POST'])
 @require_permission(CREATE_BUILDING)
 def new_building():
+    def render_form():
+        return render_template('building/form.html', building=None, days=DAYS,
+                               working_hours={}, grantable_permissions=[])
+
     if request.method == 'POST':
         city = request.form.get('city', '').strip()
         street = request.form.get('street', '').strip()
@@ -208,16 +207,13 @@ def new_building():
 
         if not city or not street:
             flash('Город и улица обязательны для заполнения.', 'error')
-            return render_template('building/form.html', building=None, days=DAYS, working_hours={}, grantable_permissions=[])
+            return render_form()
 
         photo = request.files.get('photo')
-        if photo and photo.filename:
-            if not allowed_file(photo.filename):
-                flash('Недопустимый формат файла. Разрешены JPEG, PNG, WebP.', 'error')
-                return render_template('building/form.html', building=None, days=DAYS, working_hours={}, grantable_permissions=[])
-            if photo.content_length and photo.content_length > MAX_PHOTO_SIZE:
-                flash(f'Файл слишком большой. Максимальный размер: {MAX_PHOTO_SIZE // (1024 * 1024)} МБ.', 'error')
-                return render_template('building/form.html', building=None, days=DAYS, working_hours={}, grantable_permissions=[])
+        photo_error = validate_photo(photo)
+        if photo_error:
+            flash(photo_error, 'error')
+            return render_form()
 
         try:
             with get_db_cursor(commit=True) as cur:
@@ -230,10 +226,9 @@ def new_building():
             return redirect(url_for('building.browse'))
         except Exception as e:
             flash(f'Ошибка при сохранении: {str(e)}', 'error')
-            return render_template('building/form.html', building=None, days=DAYS, working_hours={}, grantable_permissions=[])
-    else:
-        return render_template('building/form.html', building=None, days=DAYS, working_hours={},
-                               grantable_permissions=[])
+            return render_form()
+
+    return render_form()
 
 
 @building_bp.route('/buildings/<int:id>/edit', methods=['GET', 'POST'])
@@ -261,6 +256,16 @@ def edit_building(id):
         """, (id,))
         building_permissions = cur.fetchall()
 
+    form_ctx = dict(
+        building=building, days=DAYS,
+        grantable_permissions=grantable_permissions,
+        building_permissions=building_permissions,
+        perm_labels=PERMISSION_LABELS,
+    )
+
+    def render_form():
+        return render_template('building/form.html', working_hours=get_working_hours(id), **form_ctx)
+
     if request.method == 'POST':
         city = request.form.get('city', '').strip()
         street = request.form.get('street', '').strip()
@@ -268,28 +273,13 @@ def edit_building(id):
 
         if not city or not street:
             flash('Город и улица обязательны для заполнения.', 'error')
-            current_hours = get_working_hours(id)
-            return render_template('building/form.html', building=building, days=DAYS, working_hours=current_hours,
-                                grantable_permissions=grantable_permissions,
-                                building_permissions=building_permissions,
-                                perm_labels=PERMISSION_LABELS)
+            return render_form()
 
         photo = request.files.get('photo')
-        if photo and photo.filename:
-            if not allowed_file(photo.filename):
-                flash('Недопустимый формат файла. Разрешены JPEG, PNG, WebP.', 'error')
-                current_hours = get_working_hours(id)
-                return render_template('building/form.html', building=building, days=DAYS, working_hours=current_hours,
-                                grantable_permissions=grantable_permissions,
-                                building_permissions=building_permissions,
-                                perm_labels=PERMISSION_LABELS)
-            if photo.content_length and photo.content_length > MAX_PHOTO_SIZE:
-                flash(f'Файл слишком большой. Максимальный размер: {MAX_PHOTO_SIZE // (1024 * 1024)} МБ.', 'error')
-                current_hours = get_working_hours(id)
-                return render_template('building/form.html', building=building, days=DAYS, working_hours=current_hours,
-                                grantable_permissions=grantable_permissions,
-                                building_permissions=building_permissions,
-                                perm_labels=PERMISSION_LABELS)
+        photo_error = validate_photo(photo)
+        if photo_error:
+            flash(photo_error, 'error')
+            return render_form()
 
         try:
             with get_db_cursor(commit=True) as cur:
@@ -302,25 +292,15 @@ def edit_building(id):
             return redirect(url_for('building.browse'))
         except Exception as e:
             flash(f'Ошибка при сохранении: {str(e)}', 'error')
-            current_hours = get_working_hours(id)
-            return render_template('building/form.html', building=building, days=DAYS, working_hours=current_hours,
-                                grantable_permissions=grantable_permissions,
-                                building_permissions=building_permissions,
-                                perm_labels=PERMISSION_LABELS)
-    else:
-        current_hours = get_working_hours(id)
-        return render_template('building/form.html', building=building, days=DAYS, working_hours=current_hours,
-                                grantable_permissions=grantable_permissions,
-                                building_permissions=building_permissions,
-                                perm_labels=PERMISSION_LABELS)
+            return render_form()
+
+    return render_form()
 
 
 @building_bp.route('/grant-view', methods=['POST'])
+@login_required
 def grant_global_view():
     user_id = session.get('user_id')
-    if not user_id:
-        flash('Необходима авторизация.', 'error')
-        return redirect(url_for('user.login'))
 
     login = request.form.get('login', '').strip()
     if not login:
@@ -344,11 +324,9 @@ def grant_global_view():
 
 
 @building_bp.route('/buildings/<int:id>/grant', methods=['POST'])
+@login_required
 def grant_building_permission(id):
     user_id = session.get('user_id')
-    if not user_id:
-        flash('Необходима авторизация.', 'error')
-        return redirect(url_for('user.login'))
 
     building = get_building(id)
     if not building:
@@ -383,11 +361,9 @@ def grant_building_permission(id):
 
 
 @building_bp.route('/permissions/view')
+@login_required
 def view_permissions():
     user_id = session.get('user_id')
-    if not user_id:
-        flash('Необходима авторизация.', 'error')
-        return redirect(url_for('user.login'))
     if not check_granting(user_id, VIEW):
         abort(403)
     with get_db_cursor() as cur:
@@ -403,11 +379,9 @@ def view_permissions():
 
 
 @building_bp.route('/revoke-view', methods=['POST'])
+@login_required
 def revoke_global_view():
     user_id = session.get('user_id')
-    if not user_id:
-        flash('Необходима авторизация.', 'error')
-        return redirect(url_for('user.login'))
     target_user_id = request.form.get('target_user_id', type=int)
     if not target_user_id:
         flash('Некорректные данные.', 'error')
@@ -421,11 +395,9 @@ def revoke_global_view():
 
 
 @building_bp.route('/buildings/<int:id>/revoke', methods=['POST'])
+@login_required
 def revoke_building_permission(id):
     user_id = session.get('user_id')
-    if not user_id:
-        flash('Необходима авторизация.', 'error')
-        return redirect(url_for('user.login'))
     if not get_building(id):
         abort(404)
     target_user_id = request.form.get('target_user_id', type=int)

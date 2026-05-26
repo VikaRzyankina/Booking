@@ -135,6 +135,16 @@ def check_granting(user_id: int, permission: str, building_id: int = None, room_
         return cur.fetchone()[0]
 
 
+def login_required(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if not session.get('user_id'):
+            flash('Необходима авторизация.', 'error')
+            return redirect(url_for('user.login'))
+        return f(*args, **kwargs)
+    return wrapper
+
+
 def require_permission(permission, building_id_arg=None, room_id_arg=None):
     def decorator(f):
         @wraps(f)

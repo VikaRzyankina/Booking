@@ -1,19 +1,16 @@
 import calendar
 from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, abort
 
-from app.db import get_db_cursor, DAYS
-from app.permissions import check_permission, REQUEST_BOOKING
+from app.db import get_db_cursor, DAYS, TZ
+from app.permissions import check_permission, login_required, REQUEST_BOOKING
 from app.routes.building_routes import get_working_hours
 
 booking_bp = Blueprint('booking', __name__, url_prefix='/')
 
-TZ = ZoneInfo('Europe/Moscow')
 
-
-def get_building(room_id):
+def _get_building_id(room_id):
     with get_db_cursor() as cur:
         cur.execute("SELECT building_id FROM rooms WHERE id = %s", (room_id,))
         row = cur.fetchone()
@@ -79,7 +76,7 @@ def room_availability(room_id):
         now = datetime.now(TZ)
         year, month = now.year, now.month
 
-    building_id = get_building(room_id)
+    building_id = _get_building_id(room_id)
     first_day = datetime(year, month, 1, tzinfo=TZ)
     last_day = datetime(year, month, calendar.monthrange(year, month)[1], 23, 59, 59, tzinfo=TZ)
 
@@ -128,12 +125,9 @@ def room_availability(room_id):
 
 
 @booking_bp.route('/booking/my')
+@login_required
 def my_bookings():
     user_id = session.get('user_id')
-    if not user_id:
-        flash('Необходима авторизация.', 'error')
-        return redirect(url_for('auth.login'))
-
     now = datetime.now(TZ)
     with get_db_cursor() as cur:
         cur.execute("""
@@ -217,11 +211,9 @@ def can_manage_booking(user_id, booking_id):
 
 
 @booking_bp.route('/booking/<int:id>/accept', methods=['POST'])
+@login_required
 def accept_request(id):
     user_id = session.get('user_id')
-    if not user_id:
-        flash('Необходима авторизация.', 'error')
-        return redirect(url_for('auth.login'))
 
     if not can_manage_booking(user_id, id):
         flash('У вас нет прав на подтверждение этой заявки.', 'error')
@@ -247,11 +239,9 @@ def accept_request(id):
 
 
 @booking_bp.route('/booking/<int:id>/deny', methods=['POST'])
+@login_required
 def deny_request(id):
     user_id = session.get('user_id')
-    if not user_id:
-        flash('Необходима авторизация.', 'error')
-        return redirect(url_for('auth.login'))
 
     if not can_manage_booking(user_id, id):
         flash('У вас нет прав на отклонение этой заявки.', 'error')
@@ -277,14 +267,11 @@ def deny_request(id):
 
 
 @booking_bp.route('/booking/<int:room_id>/new', methods=['GET', 'POST'])
+@login_required
 def booking_request(room_id):
     user_id = session.get('user_id')
-    if not user_id:
-        flash('Необходима авторизация.', 'error')
-        return redirect(url_for('user.login'))
 
-    building_id = get_building(room_id)
-
+    building_id = _get_building_id(room_id)
     if not building_id:
         flash('Комната не найдена.', 'error')
         return redirect(url_for('building.browse'))

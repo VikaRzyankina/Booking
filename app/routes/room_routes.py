@@ -1,25 +1,53 @@
 from datetime import datetime as dt_type
 from urllib.parse import urlencode
-from zoneinfo import ZoneInfo
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, session
 
-from app.assets_manager import save_photo, allowed_file, MAX_PHOTO_SIZE
-from app.db import get_db_cursor, DAYS
-from app.permissions import (check_permission, require_permission, grant_permission, check_granting,
-                             revoke_permission, PERMISSION_LABELS,
+from app.assets_manager import save_photo, validate_photo
+from app.db import get_db_cursor, DAYS, TZ
+from app.permissions import (check_permission, require_permission, login_required, grant_permission,
+                             check_granting, revoke_permission, PERMISSION_LABELS,
                              VIEW, CREATE_ROOM, MANAGE_ROOM, MANAGE_BOOKING_REQUESTS, REQUEST_BOOKING)
-
-TZ = ZoneInfo('Europe/Moscow')
+from app.routes.building_routes import get_working_hours
 
 room_bp = Blueprint('room', __name__, url_prefix='/')
 
-_ROOM_PERM_LABELS = [
-    (VIEW, 'Просмотр'),
-    (MANAGE_ROOM, 'Управление комнатой'),
-    (REQUEST_BOOKING, 'Бронирование'),
-    (MANAGE_BOOKING_REQUESTS, 'Управление бронированиями'),
-]
+_ROOM_PERM_LABELS = [(p, PERMISSION_LABELS[p]) for p in [VIEW, MANAGE_ROOM, REQUEST_BOOKING, MANAGE_BOOKING_REQUESTS]]
+
+
+def _validate_room_form(name, capacity, size):
+    try:
+        if not name:
+            return "Название комнаты обязательно."
+        if not capacity or int(capacity) <= 0:
+            return "Вместимость должна быть положительным числом."
+        if size and float(size) < 0:
+            return "Размер не может быть отрицательным."
+    except ValueError:
+        return "Проверьте правильность введённых чисел."
+    return None
+
+
+def _parse_rating(rating_str):
+    try:
+        rating = int(rating_str)
+        if rating < 1 or rating > 10:
+            raise ValueError
+        return rating, None
+    except ValueError:
+        return None, 'Оценка должна быть целым числом от 1 до 10.'
+
+
+def _resolve_amenity_ids(cur, selected_ids, new_names):
+    ids = [int(x) for x in selected_ids if x]
+    for name in new_names:
+        cur.execute("""
+            INSERT INTO amenities (name) VALUES (%s)
+            ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
+            RETURNING id
+        """, (name,))
+        ids.append(cur.fetchone()['id'])
+    return ids
 
 
 @room_bp.route('/buildings/<int:building_id>/browse')
@@ -117,21 +145,10 @@ def browse(building_id):
         """, [user_id, user_id, building_id, building_id, user_id, building_id] + extra_params)
         rooms = cur.fetchall()
 
-        cur.execute("""
-            SELECT day_of_week, open_time, close_time, is_closed
-            FROM working_hours
-            WHERE building_id = %s
-        """, (building_id,))
-        working_hours = {}
-        for row in cur.fetchall():
-            working_hours[row['day_of_week']] = {
-                'open_time': row['open_time'],
-                'close_time': row['close_time'],
-                'is_closed': row['is_closed']
-            }
-
         cur.execute("SELECT id, name FROM amenities ORDER BY name")
         all_amenities = cur.fetchall()
+
+    working_hours = get_working_hours(building_id)
 
     time_qs_params = {k: v for k, v in {
         'date': filter_date_str,
@@ -166,95 +183,69 @@ def new_room(building_id):
         building = cur.fetchone()
         if not building:
             abort(404)
-
         cur.execute("SELECT id, name FROM amenities ORDER BY name")
         all_amenities = cur.fetchall()
 
-        if request.method == 'POST':
-            name = request.form.get('name', '').strip()
-            description = request.form.get('description', '').strip()
-            is_available = request.form.get('is_available') == 'on'
-            auto_booking = request.form.get('auto_booking') == 'on'
-            size = request.form.get('size')
-            capacity = request.form.get('capacity')
-            selected_amenity_ids = request.form.getlist('amenity_ids')
-            new_amenity_names = [n.strip().lower() for n in request.form.get('new_amenities', '').split(',') if
-                                 n.strip()]
+    def render_form():
+        return render_template('room/form.html', building=building, room=None,
+                               all_amenities=all_amenities, room_amenity_ids=set(),
+                               grantable_permissions=[])
 
-            error = None
-            try:
-                if not name:
-                    error = "Название комнаты обязательно."
-                elif not capacity or int(capacity) <= 0:
-                    error = "Вместимость должна быть положительным числом."
-                elif size and float(size) < 0:
-                    error = "Размер не может быть отрицательным."
-            except ValueError:
-                error = "Проверьте правильность введённых чисел."
+    if request.method == 'GET':
+        return render_form()
 
-            if error:
-                flash(error, 'error')
-                return render_template('room/form.html', building=building, room=None, all_amenities=all_amenities,
-                                       room_amenity_ids=set(), grantable_permissions=[])
+    name = request.form.get('name', '').strip()
+    description = request.form.get('description', '').strip()
+    is_available = request.form.get('is_available') == 'on'
+    auto_booking = request.form.get('auto_booking') == 'on'
+    size = request.form.get('size')
+    capacity = request.form.get('capacity')
+    selected_amenity_ids = request.form.getlist('amenity_ids')
+    new_amenity_names = [n.strip().lower() for n in request.form.get('new_amenities', '').split(',') if n.strip()]
 
-            photo = request.files.get('photo')
-            if photo and photo.filename:
-                if not allowed_file(photo.filename):
-                    flash('Недопустимый формат файла. Разрешены JPEG, PNG, WebP.', 'error')
-                    return render_template('room/form.html', building=building, room=None, all_amenities=all_amenities,
-                                           room_amenity_ids=set())
-                if photo.content_length and photo.content_length > MAX_PHOTO_SIZE:
-                    flash(f'Файл слишком большой. Максимальный размер: {MAX_PHOTO_SIZE // (1024 * 1024)} МБ.', 'error')
-                    return render_template('room/form.html', building=building, room=None, all_amenities=all_amenities,
-                                           room_amenity_ids=set())
+    error = _validate_room_form(name, capacity, size)
+    if error:
+        flash(error, 'error')
+        return render_form()
 
-            try:
-                with get_db_cursor(commit=True) as cur2:
-                    cur2.execute("""
-                        INSERT INTO rooms (building_id, name, description, is_available_for_booking, auto_booking, size, capacity)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
-                        RETURNING id
-                    """, (building_id, name, description, is_available, auto_booking, size, capacity))
-                    room_id = cur2.fetchone()['id']
+    photo = request.files.get('photo')
+    photo_error = validate_photo(photo)
+    if photo_error:
+        flash(photo_error, 'error')
+        return render_form()
 
-                    amenity_ids_to_add = [int(x) for x in selected_amenity_ids if x]
-                    for amenity_name in new_amenity_names:
-                        cur2.execute("""
-                            INSERT INTO amenities (name) VALUES (%s)
-                            ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
-                            RETURNING id
-                        """, (amenity_name,))
-                        amenity_ids_to_add.append(cur2.fetchone()['id'])
+    try:
+        with get_db_cursor(commit=True) as cur:
+            cur.execute("""
+                INSERT INTO rooms (building_id, name, description, is_available_for_booking, auto_booking, size, capacity)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """, (building_id, name, description, is_available, auto_booking, size, capacity))
+            room_id = cur.fetchone()['id']
 
-                    for amenity_id in amenity_ids_to_add:
-                        cur2.execute("""
-                            INSERT INTO room_amenities (room_id, amenity_id) VALUES (%s, %s)
-                            ON CONFLICT DO NOTHING
-                        """, (room_id, amenity_id))
+            for amenity_id in _resolve_amenity_ids(cur, selected_amenity_ids, new_amenity_names):
+                cur.execute("""
+                    INSERT INTO room_amenities (room_id, amenity_id) VALUES (%s, %s)
+                    ON CONFLICT DO NOTHING
+                """, (room_id, amenity_id))
 
-                if photo and photo.filename:
-                    save_photo(photo, 'rooms', f'{room_id}.jpeg')
+        if photo and photo.filename:
+            save_photo(photo, 'rooms', f'{room_id}.jpeg')
 
-                flash('Комната успешно добавлена.', 'success')
-                return redirect(url_for('room.browse', building_id=building_id))
-            except Exception as e:
-                if 'unique constraint' in str(e).lower() or 'duplicate' in str(e).lower():
-                    flash('Комната с таким названием уже существует в этом здании.', 'error')
-                else:
-                    flash(f'Ошибка при добавлении: {e}', 'error')
-                return render_template('room/form.html', building=building, room=None, all_amenities=all_amenities,
-                                       room_amenity_ids=set(), grantable_permissions=[])
-
-    return render_template('room/form.html', building=building, room=None, all_amenities=all_amenities,
-                           room_amenity_ids=set())
+        flash('Комната успешно добавлена.', 'success')
+        return redirect(url_for('room.browse', building_id=building_id))
+    except Exception as e:
+        if 'unique constraint' in str(e).lower() or 'duplicate' in str(e).lower():
+            flash('Комната с таким названием уже существует в этом здании.', 'error')
+        else:
+            flash(f'Ошибка при добавлении: {e}', 'error')
+        return render_form()
 
 
 @room_bp.route('/rooms/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
 def edit_room(id):
     user_id = session.get('user_id')
-    if not user_id:
-        flash('Необходима авторизация.', 'error')
-        return redirect(url_for('user.login'))
 
     with get_db_cursor() as cur:
         cur.execute("""
@@ -291,106 +282,76 @@ def edit_room(id):
         cur.execute("SELECT amenity_id FROM room_amenities WHERE room_id = %s", (id,))
         room_amenity_ids = {row['amenity_id'] for row in cur.fetchall()}
 
-        if request.method == 'POST':
-            name = request.form.get('name', '').strip()
-            description = request.form.get('description', '').strip()
-            is_available = request.form.get('is_available') == 'on'
-            auto_booking = request.form.get('auto_booking') == 'on'
-            size = request.form.get('size')
-            capacity = request.form.get('capacity')
-            selected_amenity_ids = request.form.getlist('amenity_ids')
-            new_amenity_names = [n.strip().lower() for n in request.form.get('new_amenities', '').split(',') if
-                                 n.strip()]
+    form_ctx = dict(
+        building=room, room=room,
+        all_amenities=all_amenities, room_amenity_ids=room_amenity_ids,
+        grantable_permissions=grantable_permissions,
+        room_permissions=room_permissions,
+        perm_labels=PERMISSION_LABELS,
+    )
 
-            error = None
-            try:
-                if not name:
-                    error = "Название комнаты обязательно."
-                elif not capacity or int(capacity) <= 0:
-                    error = "Вместимость должна быть положительным числом."
-                elif size and float(size) < 0:
-                    error = "Размер не может быть отрицательным."
-            except ValueError:
-                error = "Проверьте правильность введённых чисел."
+    def render_form():
+        return render_template('room/form.html', **form_ctx)
 
-            if error:
-                flash(error, 'error')
-                return render_template('room/form.html', building=room, room=room, all_amenities=all_amenities,
-                                       room_amenity_ids=room_amenity_ids,
-                                       grantable_permissions=grantable_permissions,
-                                       room_permissions=room_permissions,
-                                       perm_labels=PERMISSION_LABELS)
+    if request.method == 'GET':
+        return render_form()
 
-            photo = request.files.get('photo')
-            if photo and photo.filename:
-                if not allowed_file(photo.filename):
-                    flash('Недопустимый формат файла. Разрешены JPEG, PNG, WebP.', 'error')
-                    return render_template('room/form.html', building=room, room=room, all_amenities=all_amenities,
-                                           room_amenity_ids=room_amenity_ids)
-                if photo.content_length and photo.content_length > MAX_PHOTO_SIZE:
-                    flash(f'Файл слишком большой. Максимальный размер: {MAX_PHOTO_SIZE // (1024 * 1024)} МБ.', 'error')
-                    return render_template('room/form.html', building=room, room=room, all_amenities=all_amenities,
-                                           room_amenity_ids=room_amenity_ids)
+    name = request.form.get('name', '').strip()
+    description = request.form.get('description', '').strip()
+    is_available = request.form.get('is_available') == 'on'
+    auto_booking = request.form.get('auto_booking') == 'on'
+    size = request.form.get('size')
+    capacity = request.form.get('capacity')
+    selected_amenity_ids = request.form.getlist('amenity_ids')
+    new_amenity_names = [n.strip().lower() for n in request.form.get('new_amenities', '').split(',') if n.strip()]
 
-            try:
-                with get_db_cursor(commit=True) as cur2:
-                    cur2.execute("""
-                        UPDATE rooms
-                        SET name = %s, description = %s, is_available_for_booking = %s,
-                            size = %s, capacity = %s, auto_booking = %s
-                        WHERE id = %s
-                    """, (name, description, is_available, size, capacity, auto_booking, id))
+    error = _validate_room_form(name, capacity, size)
+    if error:
+        flash(error, 'error')
+        return render_form()
 
-                    amenity_ids_to_add = [int(x) for x in selected_amenity_ids if x]
-                    for amenity_name in new_amenity_names:
-                        cur2.execute("""
-                            INSERT INTO amenities (name) VALUES (%s)
-                            ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
-                            RETURNING id
-                        """, (amenity_name,))
-                        amenity_ids_to_add.append(cur2.fetchone()['id'])
+    photo = request.files.get('photo')
+    photo_error = validate_photo(photo)
+    if photo_error:
+        flash(photo_error, 'error')
+        return render_form()
 
-                    cur2.execute("DELETE FROM room_amenities WHERE room_id = %s", (id,))
-                    for amenity_id in amenity_ids_to_add:
-                        cur2.execute("""
-                            INSERT INTO room_amenities (room_id, amenity_id) VALUES (%s, %s)
-                            ON CONFLICT DO NOTHING
-                        """, (id, amenity_id))
+    try:
+        with get_db_cursor(commit=True) as cur:
+            cur.execute("""
+                UPDATE rooms
+                SET name = %s, description = %s, is_available_for_booking = %s,
+                    size = %s, capacity = %s, auto_booking = %s
+                WHERE id = %s
+            """, (name, description, is_available, size, capacity, auto_booking, id))
 
-                if photo and photo.filename:
-                    save_photo(photo, 'rooms', f'{id}.jpeg')
+            cur.execute("DELETE FROM room_amenities WHERE room_id = %s", (id,))
+            for amenity_id in _resolve_amenity_ids(cur, selected_amenity_ids, new_amenity_names):
+                cur.execute("""
+                    INSERT INTO room_amenities (room_id, amenity_id) VALUES (%s, %s)
+                    ON CONFLICT DO NOTHING
+                """, (id, amenity_id))
 
-                flash('Комната успешно обновлена.', 'success')
-                return redirect(url_for('room.browse', building_id=room['building_id']))
-            except Exception as e:
-                if 'unique constraint' in str(e).lower() or 'duplicate' in str(e).lower():
-                    flash('Комната с таким названием уже существует в этом здании.', 'error')
-                else:
-                    flash(f'Ошибка при обновлении: {e}', 'error')
-                return render_template('room/form.html', building=room, room=room, all_amenities=all_amenities,
-                                       room_amenity_ids=room_amenity_ids,
-                                       grantable_permissions=grantable_permissions,
-                                       room_permissions=room_permissions,
-                                       perm_labels=PERMISSION_LABELS)
+        if photo and photo.filename:
+            save_photo(photo, 'rooms', f'{id}.jpeg')
 
-    return render_template('room/form.html', building=room, room=room, all_amenities=all_amenities,
-                           room_amenity_ids=room_amenity_ids,
-                           grantable_permissions=grantable_permissions,
-                           room_permissions=room_permissions,
-                           perm_labels=PERMISSION_LABELS)
+        flash('Комната успешно обновлена.', 'success')
+        return redirect(url_for('room.browse', building_id=room['building_id']))
+    except Exception as e:
+        if 'unique constraint' in str(e).lower() or 'duplicate' in str(e).lower():
+            flash('Комната с таким названием уже существует в этом здании.', 'error')
+        else:
+            flash(f'Ошибка при обновлении: {e}', 'error')
+        return render_form()
 
 
 @room_bp.route('/rooms/<int:id>/grant', methods=['POST'])
+@login_required
 def grant_room_permission(id):
     user_id = session.get('user_id')
-    if not user_id:
-        flash('Необходима авторизация.', 'error')
-        return redirect(url_for('user.login'))
 
     with get_db_cursor() as cur:
-        cur.execute("""
-            SELECT r.building_id FROM rooms r WHERE r.id = %s
-        """, (id,))
+        cur.execute("SELECT building_id FROM rooms WHERE id = %s", (id,))
         row = cur.fetchone()
 
     if not row:
@@ -426,11 +387,9 @@ def grant_room_permission(id):
 
 
 @room_bp.route('/rooms/<int:id>/revoke', methods=['POST'])
+@login_required
 def revoke_room_permission(id):
     user_id = session.get('user_id')
-    if not user_id:
-        flash('Необходима авторизация.', 'error')
-        return redirect(url_for('user.login'))
     with get_db_cursor() as cur:
         cur.execute("SELECT building_id FROM rooms WHERE id = %s", (id,))
         row = cur.fetchone()
@@ -452,11 +411,9 @@ def revoke_room_permission(id):
 
 
 @room_bp.route('/rooms/<int:id>/delete', methods=['POST'])
+@login_required
 def delete_room(id):
     user_id = session.get('user_id')
-    if not user_id:
-        flash('Необходима авторизация.', 'error')
-        return redirect(url_for('user.login'))
 
     with get_db_cursor() as cur:
         cur.execute("SELECT building_id FROM rooms WHERE id = %s", (id,))
@@ -550,22 +507,16 @@ def view_room(id):
 
 
 @room_bp.route('/rooms/<int:id>/review', methods=['POST'])
+@login_required
 def create_review(id):
     user_id = session.get('user_id')
-    if not user_id:
-        flash('Необходимо войти в систему.', 'error')
+
+    rating, rating_err = _parse_rating(request.form.get('rating', '').strip())
+    if rating_err:
+        flash(rating_err, 'error')
         return redirect(url_for('room.view_room', id=id))
 
-    rating_str = request.form.get('rating', '').strip()
     review_text = request.form.get('review_text', '').strip()[:1000]
-
-    try:
-        rating = int(rating_str)
-        if rating < 1 or rating > 10:
-            raise ValueError
-    except ValueError:
-        flash('Оценка должна быть целым числом от 1 до 10.', 'error')
-        return redirect(url_for('room.view_room', id=id))
 
     with get_db_cursor(commit=True) as cur:
         cur.execute("""
@@ -600,22 +551,16 @@ def create_review(id):
 
 
 @room_bp.route('/rooms/<int:id>/review/edit', methods=['POST'])
+@login_required
 def edit_review(id):
     user_id = session.get('user_id')
-    if not user_id:
-        flash('Необходимо войти в систему.', 'error')
+
+    rating, rating_err = _parse_rating(request.form.get('rating', '').strip())
+    if rating_err:
+        flash(rating_err, 'error')
         return redirect(url_for('room.view_room', id=id))
 
-    rating_str = request.form.get('rating', '').strip()
     review_text = request.form.get('review_text', '').strip()[:1000]
-
-    try:
-        rating = int(rating_str)
-        if rating < 1 or rating > 10:
-            raise ValueError
-    except ValueError:
-        flash('Оценка должна быть целым числом от 1 до 10.', 'error')
-        return redirect(url_for('room.view_room', id=id))
 
     with get_db_cursor(commit=True) as cur:
         cur.execute("SELECT 1 FROM reviews WHERE user_id = %s AND room_id = %s", (user_id, id))
@@ -634,11 +579,9 @@ def edit_review(id):
 
 
 @room_bp.route('/rooms/<int:id>/review/delete', methods=['POST'])
+@login_required
 def delete_review(id):
     user_id = session.get('user_id')
-    if not user_id:
-        flash('Необходимо войти в систему.', 'error')
-        return redirect(url_for('room.view_room', id=id))
 
     with get_db_cursor(commit=True) as cur:
         cur.execute("DELETE FROM reviews WHERE user_id = %s AND room_id = %s", (user_id, id))

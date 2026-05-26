@@ -6,6 +6,21 @@ from app.db import get_db_cursor
 user_bp = Blueprint('user', __name__, url_prefix='/')
 
 
+def _load_current_user():
+    user_id = session.get('user_id')
+    if not user_id:
+        flash('Пожалуйста, войдите в систему')
+        return None, redirect(url_for('user.login'))
+    with get_db_cursor() as cur:
+        cur.execute("SELECT full_name, phone, password_hash FROM users WHERE id = %s", (user_id,))
+        user = cur.fetchone()
+    if not user:
+        session.pop('user_id', None)
+        flash('Сессия устарела, войдите снова')
+        return None, redirect(url_for('user.login'))
+    return user, None
+
+
 @user_bp.route('/')
 def index():
     return redirect(url_for('user.login'))
@@ -67,38 +82,17 @@ def login():
 
 @user_bp.route('/user')
 def user_page():
-    if 'user_id' not in session:
-        flash('Пожалуйста, войдите в систему')
-        return redirect(url_for('user.login'))
-
-    with get_db_cursor() as cur:
-        cur.execute("SELECT full_name, phone FROM users WHERE id = %s", (session['user_id'],))
-        user_data = cur.fetchone()
-
-    if not user_data:
-        session.pop('user_id', None)
-        flash('Сессия устарела, войдите снова')
-        return redirect(url_for('user.login'))
-
-    return render_template('user/profile.html',
-                          full_name=user_data['full_name'], 
-                          phone=user_data['phone'])
+    user, err = _load_current_user()
+    if err:
+        return err
+    return render_template('user/profile.html', full_name=user['full_name'], phone=user['phone'])
 
 
 @user_bp.route('/settings', methods=['GET', 'POST'])
 def settings():
-    if 'user_id' not in session:
-        flash('Пожалуйста, войдите в систему')
-        return redirect(url_for('user.login'))
-
-    with get_db_cursor() as cur:
-        cur.execute("SELECT full_name, phone, password_hash FROM users WHERE id = %s", (session['user_id'],))
-        user = cur.fetchone()
-
-    if not user:
-        session.pop('user_id', None)
-        flash('Сессия устарела, войдите снова')
-        return redirect(url_for('user.login'))
+    user, err = _load_current_user()
+    if err:
+        return err
 
     if request.method == 'POST':
         new_pass = request.form.get('new_password', '')
@@ -135,7 +129,7 @@ def settings():
     return render_template('user/settings.html', full_name=user['full_name'], phone=user['phone'])
 
 
-@user_bp.route('/logout',methods=['GET', 'POST'])
+@user_bp.route('/logout', methods=['GET', 'POST'])
 def logout():
     session.pop('user_id', None)
     flash('Вы вышли из системы')
