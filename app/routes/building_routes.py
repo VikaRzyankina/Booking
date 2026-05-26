@@ -5,6 +5,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 
 from app.assets_manager import MAX_PHOTO_SIZE, allowed_file, save_photo
 from app.db import get_db_cursor, DAYS
+from app.permissions import require_permission, CREATE_BUILDING, MANAGE_BUILDING
 
 building_bp = Blueprint('building', __name__, url_prefix='/')
 
@@ -186,6 +187,7 @@ def browse():
 
 
 @building_bp.route('/buildings/new', methods=['GET', 'POST'])
+@require_permission(CREATE_BUILDING)
 def new_building():
     if request.method == 'POST':
         city = request.form.get('city', '').strip()
@@ -222,6 +224,7 @@ def new_building():
 
 
 @building_bp.route('/buildings/<int:id>/edit', methods=['GET', 'POST'])
+@require_permission(MANAGE_BUILDING, building_id_arg='id')
 def edit_building(id):
     building = get_building(id)
     if not building:
@@ -268,6 +271,7 @@ def edit_building(id):
 
 
 @building_bp.route('/buildings/<int:id>/delete', methods=['GET', 'POST'])
+@require_permission(MANAGE_BUILDING, building_id_arg='id')
 def delete_building(id):
     building = get_building(id)
     if not building:

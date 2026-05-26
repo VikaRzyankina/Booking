@@ -1,4 +1,7 @@
+from functools import wraps
+
 from db import get_db_cursor
+from flask import session, flash, redirect, url_for, abort
 
 VIEW = 'VIEW'
 CREATE_BUILDING = 'CREATE_BUILDING'
@@ -72,3 +75,21 @@ def grant_permission(granter_id: int, user_id: int, permission: str,
             return True
         except Exception:
             return False
+
+
+def require_permission(permission, building_id_arg=None, room_id_arg=None):
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            logged_in_id = session.get('user_id')
+            user_id = logged_in_id or 2
+            building_id = kwargs.get(building_id_arg) if building_id_arg else None
+            room_id = kwargs.get(room_id_arg) if room_id_arg else None
+            if not check_permission(user_id, permission, building_id, room_id):
+                if not logged_in_id:
+                    flash('Необходима авторизация.', 'error')
+                    return redirect(url_for('user.login'))
+                abort(403)
+            return f(*args, **kwargs)
+        return wrapper
+    return decorator

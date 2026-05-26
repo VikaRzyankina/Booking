@@ -6,8 +6,10 @@ MAX_PHOTO_SIZE = 2 * 1024 * 1024
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp'}
 MAX_DIMENSION = 512
 
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 def save_photo(photo, subfolder, filename):
     upload_folder = os.path.join(current_app.static_folder, 'assets', subfolder)

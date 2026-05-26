@@ -2,9 +2,10 @@ import calendar
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, abort
 
 from app.db import get_db_cursor, DAYS
+from app.permissions import check_permission, REQUEST_BOOKING
 from app.routes.building_routes import get_working_hours
 
 booking_bp = Blueprint('booking', __name__, url_prefix='/')
@@ -277,11 +278,19 @@ def deny_request(id):
 
 @booking_bp.route('/booking/<int:room_id>/new', methods=['GET', 'POST'])
 def booking_request(room_id):
+    user_id = session.get('user_id')
+    if not user_id:
+        flash('Необходима авторизация.', 'error')
+        return redirect(url_for('user.login'))
+
     building_id = get_building(room_id)
 
     if not building_id:
         flash('Комната не найдена.', 'error')
         return redirect(url_for('building.browse'))
+
+    if not check_permission(user_id, REQUEST_BOOKING, building_id=building_id, room_id=room_id):
+        abort(403)
 
     if request.method == 'POST':
         try:
@@ -309,8 +318,6 @@ def booking_request(room_id):
             if not is_available(building_id, room_id, entry_time, exit_time):
                 flash('Комната уже забронирована на выбранное время.', 'error')
                 return redirect(request.url)
-
-            user_id = session.get('user_id')
 
             with get_db_cursor(commit=True) as cur:
                 cur.execute("""

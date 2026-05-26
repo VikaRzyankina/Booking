@@ -6,6 +6,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 
 from app.assets_manager import save_photo, allowed_file, MAX_PHOTO_SIZE
 from app.db import get_db_cursor, DAYS
+from app.permissions import check_permission, require_permission, VIEW, CREATE_ROOM, MANAGE_ROOM
 
 TZ = ZoneInfo('Europe/Moscow')
 
@@ -14,6 +15,10 @@ room_bp = Blueprint('room', __name__, url_prefix='/')
 
 @room_bp.route('/buildings/<int:building_id>/browse')
 def browse(building_id):
+    user_id = session.get('user_id', 2)
+    if not check_permission(user_id, VIEW, building_id=building_id):
+        abort(403)
+
     filter_date_str = request.args.get('date', '').strip() or None
     filter_time_from = request.args.get('time_from', '').strip() or None
     filter_time_to = request.args.get('time_to', '').strip() or None
@@ -74,11 +79,33 @@ def browse(building_id):
             abort(404)
 
         cur.execute(f"""
+            WITH view_scope AS (
+                SELECT
+                    EXISTS (
+                        SELECT 1 FROM user_permissions
+                        WHERE user_id = %s AND permission = 'VIEW'
+                          AND building_id IS NULL AND room_id IS NULL
+                    ) AS has_global,
+                    EXISTS (
+                        SELECT 1 FROM user_permissions
+                        WHERE user_id = %s AND permission = 'VIEW'
+                          AND building_id = %s AND room_id IS NULL
+                    ) AS has_building
+            )
             SELECT r.id, r.name, r.description, r.is_available_for_booking, r.size, r.capacity
             FROM rooms r
-            WHERE r.building_id = %s{extra_where}
+            WHERE r.building_id = %s
+              AND (
+                  (SELECT has_global FROM view_scope)
+                  OR (SELECT has_building FROM view_scope)
+                  OR EXISTS (
+                      SELECT 1 FROM user_permissions
+                      WHERE user_id = %s AND permission = 'VIEW'
+                        AND building_id = %s AND room_id = r.id
+                  )
+              ){extra_where}
             ORDER BY r.id
-        """, [building_id] + extra_params)
+        """, [user_id, user_id, building_id, building_id, user_id, building_id] + extra_params)
         rooms = cur.fetchall()
 
         cur.execute("""
@@ -123,6 +150,7 @@ def browse(building_id):
 
 
 @room_bp.route('/buildings/<int:building_id>/rooms/new', methods=['GET', 'POST'])
+@require_permission(CREATE_ROOM, building_id_arg='building_id')
 def new_room(building_id):
     with get_db_cursor() as cur:
         cur.execute("SELECT id, city, street FROM buildings WHERE id = %s", (building_id,))
@@ -214,6 +242,11 @@ def new_room(building_id):
 
 @room_bp.route('/rooms/<int:id>/edit', methods=['GET', 'POST'])
 def edit_room(id):
+    user_id = session.get('user_id')
+    if not user_id:
+        flash('Необходима авторизация.', 'error')
+        return redirect(url_for('user.login'))
+
     with get_db_cursor() as cur:
         cur.execute("""
             SELECT r.*, b.id as building_id, b.city, b.street
@@ -224,6 +257,9 @@ def edit_room(id):
         room = cur.fetchone()
         if not room:
             abort(404)
+
+        if not check_permission(user_id, MANAGE_ROOM, building_id=room['building_id'], room_id=id):
+            abort(403)
 
         cur.execute("SELECT id, name FROM amenities ORDER BY name")
         all_amenities = cur.fetchall()
@@ -313,12 +349,20 @@ def edit_room(id):
 
 @room_bp.route('/rooms/<int:id>/delete', methods=['POST'])
 def delete_room(id):
+    user_id = session.get('user_id')
+    if not user_id:
+        flash('Необходима авторизация.', 'error')
+        return redirect(url_for('user.login'))
+
     with get_db_cursor() as cur:
         cur.execute("SELECT building_id FROM rooms WHERE id = %s", (id,))
         room = cur.fetchone()
         if not room:
             abort(404)
         building_id = room['building_id']
+
+    if not check_permission(user_id, MANAGE_ROOM, building_id=building_id, room_id=id):
+        abort(403)
 
     with get_db_cursor(commit=True) as cur:
         cur.execute("DELETE FROM rooms WHERE id = %s", (id,))
