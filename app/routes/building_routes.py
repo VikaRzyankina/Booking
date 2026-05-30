@@ -351,7 +351,8 @@ def grant_building_permission(id):
         flash(f'Пользователь {login} не найден.', 'error')
         return redirect(url_for('building.edit_building', id=id))
 
-    success = grant_permission(user_id, target['id'], permission, building_id=id)
+    with_granting = request.form.get('with_granting') == 'on'
+    success = grant_permission(user_id, target['id'], permission, building_id=id, with_granting=with_granting)
     if success:
         label = next(l for p, l in _BUILDING_PERM_LABELS if p == permission)
         flash(f'Право {label} выдано пользователю {login}.', 'success')

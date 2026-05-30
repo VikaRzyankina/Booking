@@ -15,6 +15,16 @@ ALL_PERMISSIONS = [
     VIEW, CREATE_BUILDING, MANAGE_BUILDING, CREATE_ROOM, MANAGE_ROOM, MANAGE_BOOKING_REQUESTS, REQUEST_BOOKING
 ]
 
+PERMISSION_HIERARCHY = [CREATE_BUILDING, MANAGE_BUILDING, CREATE_ROOM, MANAGE_ROOM, MANAGE_BOOKING_REQUESTS]
+
+
+def _higher_permissions(permission: str) -> list:
+    if permission not in PERMISSION_HIERARCHY:
+        return []
+    idx = PERMISSION_HIERARCHY.index(permission)
+    return PERMISSION_HIERARCHY[:idx]
+
+
 PERMISSION_LABELS = {
     VIEW: 'Просмотр',
     CREATE_BUILDING: 'Создание зданий',
@@ -42,21 +52,28 @@ def check_permission(user_id: int, permission: str, building_id: int = None, roo
 
 
 def grant_permission(granter_id: int, user_id: int, permission: str,
-                     building_id: int = None, room_id: int = None) -> bool:
+                     building_id: int = None, room_id: int = None,
+                     with_granting: bool = False) -> bool:
     with get_db_cursor(commit=True) as cur:
         if building_id is None:
             cover_condition = "up.building_id IS NULL"
             params_cover = (granter_id, permission)
+            hier_cover_condition = "up.building_id IS NULL"
         else:
             if room_id is None:
                 cover_condition = "(up.building_id IS NULL OR up.building_id = %s)"
                 params_cover = (granter_id, permission, building_id)
+                hier_cover_condition = "(up.building_id IS NULL OR up.building_id = %s)"
             else:
                 cover_condition = """
                     (up.building_id IS NULL) OR
                     (up.building_id = %s AND (up.room_id IS NULL OR up.room_id = %s))
                 """
                 params_cover = (granter_id, permission, building_id, room_id)
+                hier_cover_condition = """
+                    (up.building_id IS NULL) OR
+                    (up.building_id = %s AND (up.room_id IS NULL OR up.room_id = %s))
+                """
 
         query_cover = f"""
             SELECT EXISTS (
@@ -69,7 +86,30 @@ def grant_permission(granter_id: int, user_id: int, permission: str,
             )
         """
         cur.execute(query_cover, params_cover)
-        if not cur.fetchone()[0]:
+        has_authority = cur.fetchone()[0]
+
+        if not has_authority:
+            higher = _higher_permissions(permission)
+            if higher:
+                placeholders = ','.join(['%s'] * len(higher))
+                if building_id is None:
+                    hier_params = (granter_id, *higher)
+                elif room_id is None:
+                    hier_params = (granter_id, *higher, building_id)
+                else:
+                    hier_params = (granter_id, *higher, building_id, room_id)
+
+                cur.execute(f"""
+                    SELECT EXISTS (
+                        SELECT 1 FROM user_permissions up
+                        WHERE up.user_id = %s
+                          AND up.permission IN ({placeholders})
+                          AND ({hier_cover_condition})
+                    )
+                """, hier_params)
+                has_authority = cur.fetchone()[0]
+
+        if not has_authority:
             return False
 
         cur.execute("SELECT 1 FROM users WHERE id = %s", (user_id,))
@@ -80,8 +120,8 @@ def grant_permission(granter_id: int, user_id: int, permission: str,
             cur.execute("""
                 INSERT INTO user_permissions
                     (user_id, granter_id, permission, building_id, room_id, granting)
-                VALUES (%s, %s, %s, %s, %s, FALSE)
-            """, (user_id, granter_id, permission, building_id, room_id))
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (user_id, granter_id, permission, building_id, room_id, with_granting))
             return True
         except Exception:
             return False
@@ -132,6 +172,43 @@ def check_granting(user_id: int, permission: str, building_id: int = None, room_
                       )
                 )
             """, (user_id, permission, building_id, room_id))
+
+        if cur.fetchone()[0]:
+            return True
+
+        higher = _higher_permissions(permission)
+        if not higher:
+            return False
+
+        placeholders = ','.join(['%s'] * len(higher))
+        if building_id is None:
+            cur.execute(f"""
+                SELECT EXISTS (
+                    SELECT 1 FROM user_permissions
+                    WHERE user_id = %s AND permission IN ({placeholders})
+                      AND building_id IS NULL
+                )
+            """, (user_id, *higher))
+        elif room_id is None:
+            cur.execute(f"""
+                SELECT EXISTS (
+                    SELECT 1 FROM user_permissions
+                    WHERE user_id = %s AND permission IN ({placeholders})
+                      AND (building_id IS NULL OR building_id = %s)
+                )
+            """, (user_id, *higher, building_id))
+        else:
+            cur.execute(f"""
+                SELECT EXISTS (
+                    SELECT 1 FROM user_permissions
+                    WHERE user_id = %s AND permission IN ({placeholders})
+                      AND (
+                          building_id IS NULL OR
+                          (building_id = %s AND (room_id IS NULL OR room_id = %s))
+                      )
+                )
+            """, (user_id, *higher, building_id, room_id))
+
         return cur.fetchone()[0]
 
 
