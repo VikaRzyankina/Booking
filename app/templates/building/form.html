@@ -1,12 +1,6 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% if building %}Редактирование{% else %}Новое здание{% endif %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
+{% extends 'layout.html' %}
+{% block title %}{% if building %}Редактирование{% else %}Новое здание{% endif %}{% endblock %}
+{% block body %}
     <h1>{% if building %}Редактирование здания{% else %}Добавление здания{% endif %}</h1>
     {% from 'flash_macro.html' import show_flashes %}
     {{ show_flashes() }}
@@ -156,7 +150,8 @@
         {% endif %}
     </section>
     {% endif %}
-
+{% endblock %}
+{% block scripts %}
     <script>
         function toggleTimeFields(checkbox, day) {
             var openField = document.querySelector('input[name="' + day + '_open_time"]');
@@ -172,5 +167,4 @@
             }
         }
     </script>
-</body>
-</html>
+{% endblock %}

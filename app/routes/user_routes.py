@@ -23,7 +23,7 @@ def _load_current_user():
 
 @user_bp.route('/')
 def index():
-    return redirect(url_for('user.login'))
+    return redirect(url_for('building.browse'))
 
 
 @user_bp.route('/register', methods=['GET', 'POST'])

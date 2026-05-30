@@ -1,12 +1,6 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Права на просмотр зданий</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
+{% extends 'layout.html' %}
+{% block title %}Права на просмотр зданий{% endblock %}
+{% block body %}
     <h1>Глобальное право на просмотр зданий</h1>
     {% from 'flash_macro.html' import show_flashes %}
     {{ show_flashes() }}
@@ -63,5 +57,4 @@
         <p style="color:var(--muted);margin-top:.75rem">Никто ещё не имеет этого права.</p>
         {% endif %}
     </section>
-</body>
-</html>
+{% endblock %}

@@ -1,13 +1,9 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Список зданий</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+{% extends 'layout.html' %}
+{% block title %}Список зданий{% endblock %}
+{% block extra_css %}
     <link rel="stylesheet" href="{{ url_for('static', filename='reviews.css') }}">
-</head>
-<body>
+{% endblock %}
+{% block body %}
     <h1>Список зданий</h1>
     {% from 'flash_macro.html' import show_flashes %}
     {{ show_flashes() }}
@@ -115,5 +111,4 @@
         </div>
         {% endfor %}
     </div>
-</body>
-</html>
+{% endblock %}

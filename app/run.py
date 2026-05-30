@@ -18,6 +18,10 @@ app.register_blueprint(building_bp)
 app.register_blueprint(room_bp)
 app.register_blueprint(booking_bp)
 
+@app.context_processor
+def inject_admin_email():
+    return {'admin_email': config.ADMIN_EMAIL}
+
 def initialize_default_users():
     """
     Инициализирует стандартных пользователей admin (id=1) и guest (id=2)

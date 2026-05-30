@@ -10,3 +10,5 @@ SECRET_KEY = 'ОднаждыТутБудетКлюч'
 
 TZ = ZoneInfo('Europe/Moscow')
 RATING_MIN_VOTES = 5
+
+ADMIN_EMAIL = 'admin@example.com'

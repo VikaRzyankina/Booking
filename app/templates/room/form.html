@@ -1,12 +1,6 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% if room %}Редактирование комнаты{% else %}Новая комната{% endif %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
+{% extends 'layout.html' %}
+{% block title %}{% if room %}Редактирование комнаты{% else %}Новая комната{% endif %}{% endblock %}
+{% block body %}
     <h1>{% if room %}Редактирование комнаты{% else %}Новая комната{% endif %}</h1>
     {% from 'flash_macro.html' import show_flashes %}
     {{ show_flashes() }}
@@ -161,5 +155,4 @@
         {% endif %}
     </section>
     {% endif %}
-</body>
-</html>
+{% endblock %}

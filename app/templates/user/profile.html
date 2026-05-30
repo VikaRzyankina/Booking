@@ -1,12 +1,6 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Личный кабинет</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
+{% extends 'layout.html' %}
+{% block title %}Личный кабинет{% endblock %}
+{% block body %}
     <h1>Добро пожаловать, {{ full_name }}!</h1>
     {% from 'flash_macro.html' import show_flashes %}
     {{ show_flashes() }}
@@ -26,5 +20,4 @@
             <strong>Телефон:</strong> {{ phone }}
         </div>
     </div>
-</body>
-</html>
+{% endblock %}

@@ -1,12 +1,6 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Настройки профиля</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
+{% extends 'layout.html' %}
+{% block title %}Настройки профиля{% endblock %}
+{% block body %}
     <h1>Настройки профиля</h1>
     {% from 'flash_macro.html' import show_flashes %}
     {{ show_flashes() }}
@@ -47,5 +41,4 @@
             <a href="{{ url_for('user.user_page') }}" class="cancel-link">Отмена</a>
         </div>
     </form>
-</body>
-</html>
+{% endblock %}

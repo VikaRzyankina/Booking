@@ -9,6 +9,9 @@
 </head>
 <body>
     {% block body %}{% endblock %}
+    <a class="contact-admin-btn" href="mailto:{{ admin_email }}" title="{{ admin_email }}">
+        ✉ Связаться с администрацией
+    </a>
 </body>
 {% block scripts %}{% endblock %}
 </html>
