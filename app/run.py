@@ -3,6 +3,7 @@ import secrets
 from flask import Flask
 from werkzeug.security import generate_password_hash
 
+import config
 from app.routes.booking_routes import booking_bp
 from permissions import ALL_PERMISSIONS, grant_permission
 from routes.building_routes import building_bp
@@ -10,7 +11,7 @@ from routes.room_routes import room_bp
 from routes.user_routes import user_bp
 
 app = Flask(__name__)
-app.secret_key = 'ОднаждыТутБудетКлюч'
+app.secret_key = config.SECRET_KEY
 
 app.register_blueprint(user_bp)
 app.register_blueprint(building_bp)
@@ -34,7 +35,7 @@ def initialize_default_users():
             password_hash = generate_password_hash('admin')
             cur.execute("""
                 INSERT INTO users (id, login, password_hash, full_name, phone)
-                VALUES (1, 'admin', %s, 'Administrator', 'admin@example.com')
+                VALUES (1, 'admin', %s, 'Administrator', '00000000000')
             """, (password_hash,))
         else:
             if admin_row['login'] != 'admin':
@@ -56,7 +57,7 @@ def initialize_default_users():
             ))
             cur.execute("""
                 INSERT INTO users (id, login, password_hash, full_name, phone)
-                VALUES (2, 'guest', %s, 'Guest User', 'guest@example.com')
+                VALUES (2, 'guest', %s, 'Guest User', '00000000000')
             """, (password_hash,))
         else:
             if guest_row['login'] != 'guest':

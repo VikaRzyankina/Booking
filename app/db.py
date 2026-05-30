@@ -1,19 +1,19 @@
 import psycopg2
 import psycopg2.extras
 from contextlib import contextmanager
-from zoneinfo import ZoneInfo
+
+import config
 
 DB_CONFIG = {
-    'host': 'localhost',
-    'port': 5432,
-    'dbname': 'booking',
-    'user': 'postgres',
-    'password': '1234561'
+    'host': config.DB_HOST,
+    'port': config.DB_PORT,
+    'dbname': config.DB_NAME,
+    'user': config.DB_USER,
+    'password': config.DB_PASSWORD,
 }
 
 DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-TZ = ZoneInfo('Europe/Moscow')
-RATING_MIN_VOTES = 5
+RATING_MIN_VOTES = config.RATING_MIN_VOTES
 
 
 def get_db_connection():

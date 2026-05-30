@@ -3,7 +3,8 @@ from datetime import datetime, timedelta
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, abort
 
-from app.db import get_db_cursor, DAYS, TZ
+from app.db import get_db_cursor, DAYS
+from app.config import TZ
 from app.permissions import check_permission, login_required, REQUEST_BOOKING
 from app.routes.building_routes import get_working_hours
 
