@@ -3,15 +3,100 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}{% endblock %}</title>
+    <title>{% block title %}Система бронирования{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     {% block extra_css %}{% endblock %}
 </head>
 <body>
-    {% block body %}{% endblock %}
+    <header class="site-header">
+        <div class="header-inner">
+            <a href="{{ url_for('building.browse') }}" class="site-title">Система бронирования</a>
+
+            <nav class="main-nav">
+                <a href="{{ url_for('building.browse') }}" class="nav-link">Здания</a>
+                {% if current_user %}
+                <a href="{{ url_for('booking.my_bookings') }}" class="nav-link">Мои брони</a>
+                <a href="{{ url_for('booking.browse') }}" class="nav-link">Менеджмент</a>
+                {% endif %}
+            </nav>
+
+            <div class="header-user">
+                {% if current_user %}
+                <div class="hdr-dropdown">
+                    <button class="hdr-btn" id="user-toggle">{{ current_user.full_name }} &#9662;</button>
+                    <div class="hdr-menu" id="user-menu">
+                        <div class="hdr-menu-info">
+                            <span class="hdr-info-label">Телефон</span>
+                            <span class="hdr-info-val">{{ current_user.phone }}</span>
+                        </div>
+                        <div class="hdr-menu-sep"></div>
+                        <a href="{{ url_for('user.settings') }}" class="hdr-menu-item">Настройки</a>
+                        <form action="{{ url_for('user.logout') }}" method="post" style="margin:0">
+                            <input type="hidden" name="next" value="{{ request.path }}">
+                            <button type="submit" class="hdr-menu-item hdr-menu-danger">Выйти</button>
+                        </form>
+                    </div>
+                </div>
+                {% else %}
+                <div class="hdr-dropdown">
+                    <button class="hdr-btn" id="auth-toggle">Войти &#9662;</button>
+                    <div class="hdr-menu" id="auth-menu">
+                        <form method="post" action="{{ url_for('user.login') }}">
+                            <input type="hidden" name="next" value="{{ request.path }}">
+                            <div class="hdr-field">
+                                <label>Логин</label>
+                                <input type="text" name="login" autocomplete="username" required>
+                            </div>
+                            <div class="hdr-field">
+                                <label>Пароль</label>
+                                <input type="password" name="password" autocomplete="current-password" required>
+                            </div>
+                            <button type="submit" class="hdr-submit">Войти</button>
+                        </form>
+                        <div class="hdr-menu-sep" style="margin-top:.7rem"></div>
+                        <a href="{{ url_for('user.register') }}" class="hdr-register-link">Нет аккаунта? Зарегистрироваться</a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        {% from 'flash_macro.html' import show_flashes %}
+        {{ show_flashes() }}
+        {% block body %}{% endblock %}
+    </main>
+
     <a class="contact-admin-btn" href="mailto:{{ admin_email }}" title="{{ admin_email }}">
-        ✉ Связаться с администрацией
+        &#9993; Связаться с администрацией
     </a>
+
+    <script>
+    (function () {
+        function closeAll() {
+            document.querySelectorAll('.hdr-menu').forEach(function (m) {
+                m.classList.remove('open');
+            });
+        }
+        ['user-toggle', 'auth-toggle'].forEach(function (id) {
+            var btn = document.getElementById(id);
+            if (!btn) return;
+            var menuId = id === 'user-toggle' ? 'user-menu' : 'auth-menu';
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                var menu = document.getElementById(menuId);
+                var wasOpen = menu.classList.contains('open');
+                closeAll();
+                if (!wasOpen) menu.classList.add('open');
+            });
+        });
+        document.addEventListener('click', closeAll);
+        document.querySelectorAll('.hdr-menu').forEach(function (m) {
+            m.addEventListener('click', function (e) { e.stopPropagation(); });
+        });
+    })();
+    </script>
+    {% block scripts %}{% endblock %}
 </body>
-{% block scripts %}{% endblock %}
 </html>

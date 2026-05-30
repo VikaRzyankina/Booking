@@ -5,14 +5,12 @@
 {% endblock %}
 {% block body %}
     <h1>{{ room.name }}</h1>
-    {% from 'flash_macro.html' import show_flashes %}
-    {{ show_flashes() }}
 
     {%- set _date = request.args.get('date') -%}
     {%- set _tf = request.args.get('time_from') -%}
     {%- set _tt = request.args.get('time_to') -%}
     <div class="nav-links">
-        <a href="{{ url_for('room.browse', building_id=building.id, date=_date, time_from=_tf, time_to=_tt) }}" class="back-link">
+        <a href="{{ url_for('room.browse', building_id=building.building_id, date=_date, time_from=_tf, time_to=_tt) }}" class="back-link">
             ← Назад к списку комнат
         </a>
         <a href="{{ url_for('room.edit_room', id=room.id) }}" class="add-link">
@@ -37,9 +35,9 @@
         </div>
 
         <div class="room-info-section">
-            <div class="room-status-badge {% if room.is_available_for_booking %}status-positive{% else %}status-negative{% endif %}">
-                {{ "Доступна для бронирования" if room.is_available_for_booking else "Недоступна" }}
-            </div>
+            {% if not room.is_available_for_booking %}
+            <div class="room-status-badge status-negative">Недоступна</div>
+            {% endif %}
 
             {% if room.description %}
             <div class="room-description-block">
@@ -92,7 +90,7 @@
             <span class="average-value">{{ average_rating }} / 10</span>
         </div>
         {% else %}
-        <p>Пока нет отзывов.</p>
+        <p class="no-rating-note"><em>Недостаточно оценок</em></p>
         {% endif %}
 
         {% if user_review and not edit_review %}

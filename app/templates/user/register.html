@@ -2,9 +2,6 @@
 {% block title %}Регистрация{% endblock %}
 {% block body %}
     <h1>Регистрация</h1>
-    {% from 'flash_macro.html' import show_flashes %}
-    {{ show_flashes() }}
-
     <form method="post" class="generic-form">
         <div class="form-group">
             <label for="login">Логин:</label>
@@ -25,11 +22,7 @@
 
         <div class="form-actions">
             <button type="submit" class="submit-btn">Зарегистрироваться</button>
-            <a href="{{ url_for('user.login') }}" class="cancel-link">Вход</a>
+            <a href="{{ url_for('building.browse') }}" class="cancel-link">Отмена</a>
         </div>
     </form>
-
-    <p class="centered-note">
-        Уже есть аккаунт? <a href="{{ url_for('user.login') }}" class="back-link">Войти</a>
-    </p>
 {% endblock %}

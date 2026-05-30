@@ -6,18 +6,28 @@ from app.db import get_db_cursor
 user_bp = Blueprint('user', __name__, url_prefix='/')
 
 
+def _back_url():
+    ref = request.referrer
+    if ref and ref.startswith('/'):
+        return ref
+    from urllib.parse import urlparse
+    if ref and urlparse(ref).netloc == urlparse(request.host_url).netloc:
+        return ref
+    return url_for('building.browse')
+
+
 def _load_current_user():
     user_id = session.get('user_id')
     if not user_id:
         flash('Пожалуйста, войдите в систему')
-        return None, redirect(url_for('user.login'))
+        return None, redirect(_back_url())
     with get_db_cursor() as cur:
         cur.execute("SELECT full_name, phone, password_hash FROM users WHERE id = %s", (user_id,))
         user = cur.fetchone()
     if not user:
         session.pop('user_id', None)
         flash('Сессия устарела, войдите снова')
-        return None, redirect(url_for('user.login'))
+        return None, redirect(_back_url())
     return user, None
 
 
@@ -47,7 +57,7 @@ def register():
                     VALUES (%s, %s, %s, %s)
                 """, (login, password_hash, full_name, phone))
             flash('Регистрация успешна! Теперь вы можете войти.')
-            return redirect(url_for('user.login'))
+            return redirect(url_for('building.browse'))
         except Exception:
             flash('Пользователь с таким логином или телефоном уже зарегистрирован')
             return render_template('user/register.html')
@@ -58,34 +68,34 @@ def register():
 @user_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        login = request.form.get('login', '').strip()
+        login_val = request.form.get('login', '').strip()
         password = request.form.get('password', '')
+        next_url = request.form.get('next', '')
+        if not next_url.startswith('/'):
+            next_url = url_for('building.browse')
 
-        if not login or not password:
+        if not login_val or not password:
             flash('Логин и пароль обязательны')
-            return render_template('user/login.html')
+            return redirect(next_url)
 
         with get_db_cursor() as cur:
-            cur.execute("SELECT id, password_hash FROM users WHERE login = %s", (login,))
+            cur.execute("SELECT id, password_hash FROM users WHERE login = %s", (login_val,))
             user = cur.fetchone()
 
         if user and check_password_hash(user['password_hash'], password):
             session['user_id'] = user['id']
-            flash('Вы успешно вошли в систему')
-            return redirect(url_for('user.user_page'))
+            flash('Вы успешно вошли в систему!')
+            return redirect(next_url)
         else:
-            flash('Неверный логин или пароль')
-            return render_template('user/login.html')
+            flash('Неверный логин или пароль.', 'error')
+            return redirect(next_url)
 
-    return render_template('user/login.html')
+    return redirect(url_for('building.browse'))
 
 
 @user_bp.route('/user')
 def user_page():
-    user, err = _load_current_user()
-    if err:
-        return err
-    return render_template('user/profile.html', full_name=user['full_name'], phone=user['phone'])
+    return redirect(url_for('building.browse'))
 
 
 @user_bp.route('/settings', methods=['GET', 'POST'])
@@ -121,7 +131,7 @@ def settings():
                     WHERE id = %s
                 """, (full_name, phone, password_hash, session['user_id']))
             flash('Настройки успешно обновлены')
-            return redirect(url_for('user.user_page'))
+            return redirect(url_for('building.browse'))
         except Exception:
             flash('Пользователь с таким телефоном уже существует')
             return render_template('user/settings.html', full_name=full_name, phone=phone)
@@ -133,4 +143,7 @@ def settings():
 def logout():
     session.pop('user_id', None)
     flash('Вы вышли из системы')
-    return redirect(url_for('user.login'))
+    next_url = request.form.get('next', '')
+    if not next_url.startswith('/'):
+        next_url = url_for('building.browse')
+    return redirect(next_url)

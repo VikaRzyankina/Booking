@@ -8,8 +8,6 @@
 
 {% block body %}
     <h1>Запрос на бронирование</h1>
-    {% from 'flash_macro.html' import show_flashes %}
-    {{ show_flashes() }}
 
     {% set day_names = {'Monday': 'Пн', 'Tuesday': 'Вт', 'Wednesday': 'Ср', 'Thursday': 'Чт', 'Friday': 'Пт', 'Saturday': 'Сб', 'Sunday': 'Вс'} %}
     {% if working_hours %}

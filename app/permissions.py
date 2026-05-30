@@ -1,7 +1,17 @@
 from functools import wraps
 
 from db import get_db_cursor
-from flask import session, flash, redirect, url_for, abort
+from urllib.parse import urlparse
+from flask import session, flash, redirect, url_for, abort, request
+
+
+def _back_url():
+    ref = request.referrer
+    if ref and ref.startswith('/'):
+        return ref
+    if ref and urlparse(ref).netloc == urlparse(request.host_url).netloc:
+        return ref
+    return url_for('building.browse')
 
 VIEW = 'VIEW'
 CREATE_BUILDING = 'CREATE_BUILDING'
@@ -217,7 +227,7 @@ def login_required(f):
     def wrapper(*args, **kwargs):
         if not session.get('user_id'):
             flash('Необходима авторизация.', 'error')
-            return redirect(url_for('user.login'))
+            return redirect(_back_url())
         return f(*args, **kwargs)
     return wrapper
 
@@ -233,7 +243,7 @@ def require_permission(permission, building_id_arg=None, room_id_arg=None):
             if not check_permission(user_id, permission, building_id, room_id):
                 if not logged_in_id:
                     flash('Необходима авторизация.', 'error')
-                    return redirect(url_for('user.login'))
+                    return redirect(_back_url())
                 abort(403)
             return f(*args, **kwargs)
         return wrapper

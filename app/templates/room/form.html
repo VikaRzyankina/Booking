@@ -2,8 +2,6 @@
 {% block title %}{% if room %}Редактирование комнаты{% else %}Новая комната{% endif %}{% endblock %}
 {% block body %}
     <h1>{% if room %}Редактирование комнаты{% else %}Новая комната{% endif %}</h1>
-    {% from 'flash_macro.html' import show_flashes %}
-    {{ show_flashes() }}
 
     <div class="generic-form info-box">
         <div class="form-group">

@@ -2,8 +2,6 @@
 {% block title %}Настройки профиля{% endblock %}
 {% block body %}
     <h1>Настройки профиля</h1>
-    {% from 'flash_macro.html' import show_flashes %}
-    {{ show_flashes() }}
 
     <form method="POST" class="generic-form">
         <div class="settings-cols">
@@ -38,7 +36,7 @@
 
         <div class="form-actions">
             <button type="submit" class="submit-btn">Сохранить изменения</button>
-            <a href="{{ url_for('user.user_page') }}" class="cancel-link">Отмена</a>
+            <a href="{{ url_for('building.browse') }}" class="cancel-link">Отмена</a>
         </div>
     </form>
 {% endblock %}

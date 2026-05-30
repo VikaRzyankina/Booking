@@ -2,8 +2,6 @@
 {% block title %}Права на просмотр зданий{% endblock %}
 {% block body %}
     <h1>Глобальное право на просмотр зданий</h1>
-    {% from 'flash_macro.html' import show_flashes %}
-    {{ show_flashes() }}
 
     <div class="nav-links">
         <a href="{{ url_for('building.browse') }}" class="back-link">← Назад к зданиям</a>

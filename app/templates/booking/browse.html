@@ -2,11 +2,6 @@
 {% block title %}Заявки на бронирование{% endblock %}
 {% block body %}
     <h1>Заявки на бронирование</h1>
-    {% from 'flash_macro.html' import show_flashes %}
-    {{ show_flashes() }}
-
-    <a href="{{ url_for('user.user_page') }}" class="back-link">← Назад в профиль</a>
-
     {% if requests %}
     <table>
         <thead>

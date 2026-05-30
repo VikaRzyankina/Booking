@@ -1,10 +1,10 @@
 import secrets
 
-from flask import Flask
+from flask import Flask, session
 from werkzeug.security import generate_password_hash
 
 import config
-from app.routes.booking_routes import booking_bp
+from routes.booking_routes import booking_bp
 from permissions import ALL_PERMISSIONS, grant_permission
 from routes.building_routes import building_bp
 from routes.room_routes import room_bp
@@ -19,8 +19,24 @@ app.register_blueprint(room_bp)
 app.register_blueprint(booking_bp)
 
 @app.context_processor
-def inject_admin_email():
-    return {'admin_email': config.ADMIN_EMAIL}
+def inject_globals():
+    from db import get_db_cursor
+    user_id = session.get('user_id')
+    current_user = None
+    if user_id:
+        try:
+            with get_db_cursor() as cur:
+                cur.execute("SELECT id, full_name, phone FROM users WHERE id = %s", (user_id,))
+                row = cur.fetchone()
+                if row:
+                    current_user = {
+                        'id': row['id'],
+                        'full_name': row['full_name'],
+                        'phone': row['phone'],
+                    }
+        except Exception:
+            pass
+    return {'admin_email': config.ADMIN_EMAIL, 'current_user': current_user}
 
 def initialize_default_users():
     """
@@ -71,4 +87,3 @@ def initialize_default_users():
 if __name__ == '__main__':
     initialize_default_users()
     app.run(debug=True)
-
