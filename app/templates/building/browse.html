@@ -9,7 +9,9 @@
         {% if can_grant_view %}
         <a href="{{ url_for('building.view_permissions') }}" class="add-link">Управление правами просмотра</a>
         {% endif %}
+        {% if can_create_building %}
         <a href="{{ url_for('building.new_building') }}" class="add-link">+ Добавить здание</a>
+        {% endif %}
     </div>
 
     {% set active_count = (1 if filter_city else 0) + (1 if filter_street else 0) + (1 if filter_date else 0) %}

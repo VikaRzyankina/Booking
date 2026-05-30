@@ -5,9 +5,9 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 
 from app.assets_manager import save_photo, validate_photo
 from app.db import get_db_cursor, DAYS, RATING_MIN_VOTES
-from app.permissions import (require_permission, login_required, grant_permission, check_granting,
-                             revoke_permission, PERMISSION_LABELS, VIEW, CREATE_BUILDING,
-                             MANAGE_BUILDING, CREATE_ROOM, MANAGE_BOOKING_REQUESTS)
+from app.permissions import (check_permission, require_permission, login_required, grant_permission,
+                             check_granting, revoke_permission, PERMISSION_LABELS, VIEW,
+                             CREATE_BUILDING, MANAGE_BUILDING, CREATE_ROOM, MANAGE_BOOKING_REQUESTS)
 
 building_bp = Blueprint('building', __name__, url_prefix='/')
 
@@ -203,6 +203,7 @@ def browse():
     time_qs = ('?' + urlencode(time_qs_params)) if time_qs_params else ''
 
     can_grant_view = bool(user_id != 2 and check_granting(user_id, VIEW))
+    can_create_building = check_permission(user_id, CREATE_BUILDING)
 
     return render_template(
         'building/browse.html',
@@ -217,6 +218,7 @@ def browse():
         filter_time_to=filter_time_to or '',
         time_qs=time_qs,
         can_grant_view=can_grant_view,
+        can_create_building=can_create_building,
     )
 
 

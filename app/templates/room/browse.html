@@ -10,13 +10,17 @@
         <a href="{{ url_for('building.browse') }}" class="back-link">
             ← Назад к списку зданий
         </a>
+        {% if can_create_room %}
         <a href="{{ url_for('room.new_room', building_id=building.id) }}" class="add-link">
             + Добавить комнату
         </a>
+        {% endif %}
+        {% if can_manage_building %}
         <a href="{{ url_for('building.edit_building', id=building.id) }}" class="add-link">Редактировать здание</a>
         <form action="{{ url_for('building.delete_building', id=building.id) }}" method="post" class="inline-form">
             <button type="submit" onclick="return confirm('Удалить здание?')" class="delete-btn">Удалить здание</button>
         </form>
+        {% endif %}
     </div>
 
     {% set day_names = {'Monday': 'Пн', 'Tuesday': 'Вт', 'Wednesday': 'Ср', 'Thursday': 'Чт', 'Friday': 'Пт', 'Saturday': 'Сб', 'Sunday': 'Вс'} %}

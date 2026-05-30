@@ -13,6 +13,7 @@
         <a href="{{ url_for('room.browse', building_id=building.building_id, date=_date, time_from=_tf, time_to=_tt) }}" class="back-link">
             ← Назад к списку комнат
         </a>
+        {% if can_manage_room %}
         <a href="{{ url_for('room.edit_room', id=room.id) }}" class="add-link">
             Редактировать комнату
         </a>
@@ -23,6 +24,7 @@
                 Удалить комнату
             </button>
         </form>
+        {% endif %}
     </div>
 
     <div class="room-view-container">

@@ -8,7 +8,8 @@ from app.db import get_db_cursor, DAYS, RATING_MIN_VOTES
 from app.config import TZ, PAYMENT_ENABLED
 from app.permissions import (check_permission, require_permission, login_required, grant_permission,
                              check_granting, revoke_permission, PERMISSION_LABELS,
-                             VIEW, CREATE_ROOM, MANAGE_ROOM, MANAGE_BOOKING_REQUESTS, REQUEST_BOOKING)
+                             VIEW, CREATE_ROOM, MANAGE_BUILDING, MANAGE_ROOM, MANAGE_BOOKING_REQUESTS,
+                             REQUEST_BOOKING)
 from app.routes.building_routes import get_working_hours
 
 room_bp = Blueprint('room', __name__, url_prefix='/')
@@ -190,6 +191,9 @@ def browse(building_id):
     }.items() if v}
     time_qs = ('?' + urlencode(time_qs_params)) if time_qs_params else ''
 
+    can_manage_building = check_permission(user_id, MANAGE_BUILDING, building_id=building_id)
+    can_create_room = check_permission(user_id, CREATE_ROOM, building_id=building_id)
+
     return render_template(
         'room/browse.html',
         building=building,
@@ -209,6 +213,8 @@ def browse(building_id):
         filter_price_max=filter_price_max or '',
         payment_enabled=PAYMENT_ENABLED,
         time_qs=time_qs,
+        can_manage_building=can_manage_building,
+        can_create_room=can_create_room,
     )
 
 
@@ -572,6 +578,9 @@ def view_room(id):
 
         edit_review = request.args.get('edit_review') == '1' and user_review is not None
 
+    can_manage_room = check_permission(user_id or 2, MANAGE_ROOM,
+                                       building_id=room['building_id'], room_id=id)
+
     return render_template('room/view.html',
                            room=room,
                            building=room,
@@ -580,7 +589,8 @@ def view_room(id):
                            user_review=user_review,
                            can_review=can_review,
                            average_rating=average_rating,
-                           edit_review=edit_review)
+                           edit_review=edit_review,
+                           can_manage_room=can_manage_room)
 
 
 @room_bp.route('/rooms/<int:id>/review', methods=['POST'])
