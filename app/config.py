@@ -12,3 +12,6 @@ TZ = ZoneInfo('Europe/Moscow')
 RATING_MIN_VOTES = 5
 
 ADMIN_EMAIL = 'admin@example.com'
+
+PAYMENT_ENABLED = True
+PAYMENT_REFUND_TIMEOUT_HOURS = 24

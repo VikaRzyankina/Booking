@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, abort
 
 from app.db import get_db_cursor, DAYS
-from app.config import TZ
+from app.config import TZ, PAYMENT_ENABLED, PAYMENT_REFUND_TIMEOUT_HOURS
 from app.permissions import check_permission, login_required, REQUEST_BOOKING
 from app.routes.building_routes import get_working_hours
 
@@ -135,11 +135,13 @@ def my_bookings():
             SELECT
                 b.id,
                 b.room_id,
+                r.name AS room_name,
                 b.entry_time,
                 b.exit_time,
                 b.is_accepted,
                 b.deny_reason,
                 b.is_automatic,
+                b.payment_amount,
                 bld.city,
                 bld.street
             FROM bookings b
@@ -170,6 +172,7 @@ def browse():
                 bookings.*,
                 buildings.city,
                 buildings.street,
+                rooms.name AS room_name,
                 users.login AS booking_user_login,
                 users.full_name AS booking_user_full_name
             FROM bookings
@@ -284,6 +287,7 @@ def booking_request(room_id):
         try:
             booking_start_str = request.form.get('booking_start')
             booking_time_str = request.form.get('booking_time')
+            confirmed = request.form.get('confirmed') == '1'
 
             if not booking_start_str or not booking_time_str:
                 flash('Пожалуйста, заполните все поля.', 'error')
@@ -307,17 +311,49 @@ def booking_request(room_id):
                 flash('Комната уже забронирована на выбранное время.', 'error')
                 return redirect(request.url)
 
+            with get_db_cursor() as cur:
+                cur.execute("""
+                    SELECT r.name AS room_name, r.auto_booking, r.price_per_10min,
+                           bld.city, bld.street
+                    FROM rooms r
+                    JOIN buildings bld ON bld.id = r.building_id
+                    WHERE r.id = %s
+                """, (room_id,))
+                room_info = cur.fetchone()
+
+            is_auto = room_info['auto_booking']
+            price_per_10min = room_info['price_per_10min']
+            needs_payment = PAYMENT_ENABLED and price_per_10min is not None
+
+            if needs_payment and not confirmed:
+                amount = int((booking_time // 10) * price_per_10min)
+                return render_template(
+                    'booking/payment_confirm.html',
+                    room_id=room_id,
+                    room_name=room_info['room_name'],
+                    city=room_info['city'],
+                    street=room_info['street'],
+                    entry_time=entry_time,
+                    exit_time=exit_time,
+                    booking_start=booking_start_str,
+                    booking_time=booking_time,
+                    amount=amount,
+                    refund_hours=PAYMENT_REFUND_TIMEOUT_HOURS,
+                )
+
+            payment_amount = (booking_time // 10) * price_per_10min if needs_payment else None
+
             with get_db_cursor(commit=True) as cur:
                 cur.execute("""
-                    INSERT INTO bookings (room_id, booking_user_id, entry_time, exit_time, is_accepted, is_automatic)
-                        SELECT %s, %s, %s, %s,
-                               CASE WHEN auto_booking THEN TRUE ELSE NULL END,
-                               auto_booking
-                        FROM rooms
-                        WHERE id = %s
-                """, (room_id, user_id, entry_time, exit_time, room_id))
+                    INSERT INTO bookings (room_id, booking_user_id, entry_time, exit_time, is_accepted, is_automatic, payment_amount)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """, (room_id, user_id, entry_time, exit_time,
+                      True if is_auto else None, is_auto, payment_amount))
 
-            flash('Заявка на бронирование успешно создана.', 'success')
+            if is_auto:
+                flash('Заявка принята автоматически.', 'success')
+            else:
+                flash('Заявка на бронирование успешно создана.', 'success')
             return redirect(url_for('room.view_room', id=room_id))
 
         except (ValueError, TypeError) as e:

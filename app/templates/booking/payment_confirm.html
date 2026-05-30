@@ -1,0 +1,46 @@
+{% extends 'layout.html' %}
+{% block title %}Подтверждение оплаты{% endblock %}
+{% block body %}
+    <h1>Подтверждение оплаты</h1>
+
+    <p class="payment-total">Сумма к оплате: {{ amount }} ₽</p>
+
+    <table>
+        <tbody>
+            <tr>
+                <th>Город</th>
+                <td>{{ city }}</td>
+            </tr>
+            <tr>
+                <th>Улица</th>
+                <td>{{ street }}</td>
+            </tr>
+            <tr>
+                <th>Комната</th>
+                <td>{{ room_name }}</td>
+            </tr>
+            <tr>
+                <th>Начало</th>
+                <td>{{ entry_time.strftime('%d.%m.%Y %H:%M') }}</td>
+            </tr>
+            <tr>
+                <th>Окончание</th>
+                <td>{{ exit_time.strftime('%d.%m.%Y %H:%M') }}</td>
+            </tr>
+            <tr>
+                <th>Возврат</th>
+                <td>В течение {{ refund_hours }} ч., если заявка не принята</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <form method="post" class="generic-form">
+        <input type="hidden" name="booking_start" value="{{ booking_start }}">
+        <input type="hidden" name="booking_time" value="{{ booking_time }}">
+        <input type="hidden" name="confirmed" value="1">
+        <div class="form-actions">
+            <button type="submit" class="submit-btn">Оплатить</button>
+            <a href="{{ url_for('booking.booking_request', room_id=room_id) }}" class="cancel-link">Отмена</a>
+        </div>
+    </form>
+{% endblock %}

@@ -5,7 +5,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 
 from app.assets_manager import save_photo, validate_photo
 from app.db import get_db_cursor, DAYS, RATING_MIN_VOTES
-from app.config import TZ
+from app.config import TZ, PAYMENT_ENABLED
 from app.permissions import (check_permission, require_permission, login_required, grant_permission,
                              check_granting, revoke_permission, PERMISSION_LABELS,
                              VIEW, CREATE_ROOM, MANAGE_ROOM, MANAGE_BOOKING_REQUESTS, REQUEST_BOOKING)
@@ -64,6 +64,8 @@ def browse(building_id):
     filter_size_min = request.args.get('size_min', '').strip() or None
     filter_size_max = request.args.get('size_max', '').strip() or None
     filter_capacity_min = request.args.get('capacity_min', '').strip() or None
+    filter_price_min = request.args.get('price_min', '').strip() or None if PAYMENT_ENABLED else None
+    filter_price_max = request.args.get('price_max', '').strip() or None if PAYMENT_ENABLED else None
 
     entry_time = exit_time = None
     if filter_date_str and filter_time_from and filter_time_to:
@@ -105,6 +107,12 @@ def browse(building_id):
         if filter_capacity_min:
             extra_conds.append("r.capacity >= %s")
             extra_params.append(int(filter_capacity_min))
+        if filter_price_min:
+            extra_conds.append("r.price_per_10min >= %s")
+            extra_params.append(float(filter_price_min))
+        if filter_price_max:
+            extra_conds.append("(r.price_per_10min <= %s OR r.price_per_10min IS NULL)")
+            extra_params.append(float(filter_price_max))
     except (ValueError, TypeError):
         pass
 
@@ -130,7 +138,7 @@ def browse(building_id):
                           AND building_id = %s AND room_id IS NULL
                     ) AS has_building
             )
-            SELECT r.id, r.name, r.description, r.is_available_for_booking, r.size, r.capacity
+            SELECT r.id, r.name, r.description, r.is_available_for_booking, r.size, r.capacity, r.price_per_10min
             FROM rooms r
             WHERE r.building_id = %s
               AND (
@@ -197,6 +205,9 @@ def browse(building_id):
         filter_size_min=filter_size_min or '',
         filter_size_max=filter_size_max or '',
         filter_capacity_min=filter_capacity_min or '',
+        filter_price_min=filter_price_min or '',
+        filter_price_max=filter_price_max or '',
+        payment_enabled=PAYMENT_ENABLED,
         time_qs=time_qs,
     )
 
@@ -215,7 +226,7 @@ def new_room(building_id):
     def render_form():
         return render_template('room/form.html', building=building, room=None,
                                all_amenities=all_amenities, room_amenity_ids=set(),
-                               grantable_permissions=[])
+                               grantable_permissions=[], payment_enabled=PAYMENT_ENABLED)
 
     if request.method == 'GET':
         return render_form()
@@ -228,6 +239,18 @@ def new_room(building_id):
     capacity = request.form.get('capacity')
     selected_amenity_ids = request.form.getlist('amenity_ids')
     new_amenity_names = [n.strip().lower() for n in request.form.get('new_amenities', '').split(',') if n.strip()]
+
+    price_per_10min_str = request.form.get('price_per_10min', '').strip()
+    price_per_10min = None
+    if PAYMENT_ENABLED and price_per_10min_str:
+        try:
+            price_per_10min = float(price_per_10min_str)
+            if price_per_10min < 0:
+                flash('Цена за 10 минут не может быть отрицательной.', 'error')
+                return render_form()
+        except ValueError:
+            flash('Некорректное значение цены.', 'error')
+            return render_form()
 
     error = _validate_room_form(name, capacity, size)
     if error:
@@ -243,10 +266,10 @@ def new_room(building_id):
     try:
         with get_db_cursor(commit=True) as cur:
             cur.execute("""
-                INSERT INTO rooms (building_id, name, description, is_available_for_booking, auto_booking, size, capacity)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO rooms (building_id, name, description, is_available_for_booking, auto_booking, size, capacity, price_per_10min)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
-            """, (building_id, name, description, is_available, auto_booking, size, capacity))
+            """, (building_id, name, description, is_available, auto_booking, size, capacity, price_per_10min))
             room_id = cur.fetchone()['id']
 
             for amenity_id in _resolve_amenity_ids(cur, selected_amenity_ids, new_amenity_names):
@@ -314,6 +337,7 @@ def edit_room(id):
         grantable_permissions=grantable_permissions,
         room_permissions=room_permissions,
         perm_labels=PERMISSION_LABELS,
+        payment_enabled=PAYMENT_ENABLED,
     )
 
     def render_form():
@@ -331,6 +355,18 @@ def edit_room(id):
     selected_amenity_ids = request.form.getlist('amenity_ids')
     new_amenity_names = [n.strip().lower() for n in request.form.get('new_amenities', '').split(',') if n.strip()]
 
+    price_per_10min_str = request.form.get('price_per_10min', '').strip()
+    price_per_10min = None
+    if PAYMENT_ENABLED and price_per_10min_str:
+        try:
+            price_per_10min = float(price_per_10min_str)
+            if price_per_10min < 0:
+                flash('Цена за 10 минут не может быть отрицательной.', 'error')
+                return render_form()
+        except ValueError:
+            flash('Некорректное значение цены.', 'error')
+            return render_form()
+
     error = _validate_room_form(name, capacity, size)
     if error:
         flash(error, 'error')
@@ -347,9 +383,9 @@ def edit_room(id):
             cur.execute("""
                 UPDATE rooms
                 SET name = %s, description = %s, is_available_for_booking = %s,
-                    size = %s, capacity = %s, auto_booking = %s
+                    size = %s, capacity = %s, auto_booking = %s, price_per_10min = %s
                 WHERE id = %s
-            """, (name, description, is_available, size, capacity, auto_booking, id))
+            """, (name, description, is_available, size, capacity, auto_booking, price_per_10min, id))
 
             cur.execute("DELETE FROM room_amenities WHERE room_id = %s", (id,))
             for amenity_id in _resolve_amenity_ids(cur, selected_amenity_ids, new_amenity_names):

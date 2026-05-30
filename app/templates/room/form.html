@@ -60,6 +60,16 @@
             <input type="number" id="capacity" name="capacity" value="{{ room.capacity if room else '' }}" required min="1" placeholder="положительное число">
         </div>
 
+        {% if payment_enabled %}
+        <div class="form-group">
+            <label for="price_per_10min">Цена за 10 минут (₽):</label>
+            <input type="number" step="any" id="price_per_10min" name="price_per_10min"
+                   value="{{ room.price_per_10min if room and room.price_per_10min is not none else '' }}"
+                   min="0" placeholder="Оставьте пустым, если оплата не нужна">
+            <small class="field-hint">Если указано, при бронировании будет запрошена оплата.</small>
+        </div>
+        {% endif %}
+
         <div class="form-group">
             <label>Удобства:</label>
             {% if all_amenities %}

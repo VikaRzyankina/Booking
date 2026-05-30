@@ -43,8 +43,9 @@ CREATE TABLE rooms (
     is_available_for_booking BOOLEAN NOT NULL DEFAULT TRUE,
     auto_booking BOOLEAN NOT NULL DEFAULT FALSE,
     size NUMERIC(10,2),
-    capacity INTEGER NOT NULL CHECK (capacity > 0), -- Предполагаемое кол-во мест
-    UNIQUE(name, building_id)  
+    capacity INTEGER NOT NULL CHECK (capacity > 0),
+    price_per_10min NUMERIC(10,2),
+    UNIQUE(name, building_id)
 );
 
 CREATE INDEX idx_rooms_building_id ON rooms(building_id);
@@ -92,7 +93,7 @@ CREATE INDEX idx_reviews_rating ON reviews(rating);
 -- Перечисления для прав
 CREATE TYPE permission_enum AS ENUM (
     'VIEW',
-    'CREATE_BUILDING'
+    'CREATE_BUILDING',
     'MANAGE_BUILDING',
     'CREATE_ROOM',
     'MANAGE_ROOM',
@@ -128,6 +129,7 @@ CREATE TABLE bookings (
     is_automatic BOOLEAN NOT NULL DEFAULT FALSE,
     entry_time TIMESTAMP WITH TIME ZONE NOT NULL,
     exit_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    payment_amount NUMERIC(10,2),
     CHECK (entry_time < exit_time)
 );
 CREATE INDEX idx_bookings_room_id ON bookings(room_id);

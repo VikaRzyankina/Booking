@@ -23,7 +23,7 @@
                     <small>({{ request.booking_user_login }})</small>
                 </td>
                 <td>{{ request.city }}, {{ request.street }}</td>
-                <td>Комната №{{ request.room_id }}</td>
+                <td>{{ request.room_name }}</td>
                 <td>{{ request.entry_time.strftime('%d.%m.%Y %H:%M') if request.entry_time else '' }}</td>
                 <td>{{ request.exit_time.strftime('%d.%m.%Y %H:%M') if request.exit_time else '' }}</td>
                 <td>{{ request.purpose or '' }}</td>

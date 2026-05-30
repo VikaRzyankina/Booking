@@ -9,12 +9,12 @@
             <tr>
                 <th>ID</th>
                 <th>Здание</th>
-                <th>Комната ID</th>
+                <th>Комната</th>
                 <th>Вход</th>
                 <th>Выход</th>
                 <th>Статус</th>
                 <th>Причина отказа</th>
-                <th>Автоматическая</th>
+                <th>Оплата</th>
             </tr>
         </thead>
         <tbody>
@@ -22,7 +22,7 @@
             <tr>
                 <td>{{ b.id }}</td>
                 <td>{{ b.city }}, {{ b.street }}</td>
-                <td>{{ b.room_id }}</td>
+                <td>{{ b.room_name }}</td>
                 <td>{{ b.entry_time.strftime('%Y-%m-%d %H:%M') if b.entry_time else '' }}</td>
                 <td>{{ b.exit_time.strftime('%Y-%m-%d %H:%M') if b.exit_time else '' }}</td>
                 <td>
@@ -31,7 +31,7 @@
                     {% else %}Отклонена{% endif %}
                 </td>
                 <td>{{ b.deny_reason or '' }}</td>
-                <td>{{ 'Да' if b.is_automatic else 'Нет' }}</td>
+                <td>{{ b.payment_amount|int ~ ' ₽' if b.payment_amount is not none else '—' }}</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -47,12 +47,12 @@
             <tr>
                 <th>ID</th>
                 <th>Здание</th>
-                <th>Комната ID</th>
+                <th>Комната</th>
                 <th>Вход</th>
                 <th>Выход</th>
                 <th>Статус</th>
                 <th>Причина отказа</th>
-                <th>Автоматическая</th>
+                <th>Оплата</th>
             </tr>
         </thead>
         <tbody>
@@ -60,7 +60,7 @@
             <tr>
                 <td>{{ b.id }}</td>
                 <td>{{ b.city }}, {{ b.street }}</td>
-                <td>{{ b.room_id }}</td>
+                <td>{{ b.room_name }}</td>
                 <td>{{ b.entry_time.strftime('%Y-%m-%d %H:%M') if b.entry_time else '' }}</td>
                 <td>{{ b.exit_time.strftime('%Y-%m-%d %H:%M') if b.exit_time else '' }}</td>
                 <td>
@@ -69,7 +69,7 @@
                     {% else %}Отклонена{% endif %}
                 </td>
                 <td>{{ b.deny_reason or '' }}</td>
-                <td>{{ 'Да' if b.is_automatic else 'Нет' }}</td>
+                <td>{{ b.payment_amount|int ~ ' ₽' if b.payment_amount is not none else '—' }}</td>
             </tr>
             {% endfor %}
         </tbody>

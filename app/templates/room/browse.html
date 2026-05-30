@@ -44,7 +44,7 @@
     </table>
     {% endif %}
 
-    {% set active_count = (1 if filter_date else 0) + (filter_amenity_ids|length) + (1 if filter_size_min else 0) + (1 if filter_size_max else 0) + (1 if filter_capacity_min else 0) %}
+    {% set active_count = (1 if filter_date else 0) + (filter_amenity_ids|length) + (1 if filter_size_min else 0) + (1 if filter_size_max else 0) + (1 if filter_capacity_min else 0) + (1 if payment_enabled and filter_price_min else 0) + (1 if payment_enabled and filter_price_max else 0) %}
     <details class="filter-panel" {% if active_count > 0 %}open{% endif %}>
         <summary class="filter-toggle">
             Фильтры{% if active_count > 0 %} <span class="filter-badge">{{ active_count }}</span>{% endif %}
@@ -100,6 +100,21 @@
                 </div>
             </div>
 
+            {% if payment_enabled %}
+            <div class="filter-row" style="margin-top:.75rem">
+                <div class="filter-group">
+                    <label class="filter-label" for="f-price-min">Цена за 10 мин от (₽)</label>
+                    <input type="number" id="f-price-min" name="price_min" value="{{ filter_price_min }}"
+                           min="0" step="1" class="filter-input filter-input-sm">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label" for="f-price-max">до (₽)</label>
+                    <input type="number" id="f-price-max" name="price_max" value="{{ filter_price_max }}"
+                           min="0" step="1" class="filter-input filter-input-sm">
+                </div>
+            </div>
+            {% endif %}
+
             <div class="filter-actions">
                 <button type="submit" class="submit-btn">Применить</button>
                 <a href="{{ url_for('room.browse', building_id=building.id) }}" class="cancel-link">Сбросить</a>
@@ -139,6 +154,15 @@
                     <span class="card-detail">📐 {{ room.size }} м²</span>
                     {% endif %}
                     <span class="card-detail">👥 {{ room.capacity }} мест</span>
+                    {% if payment_enabled %}
+                    <span class="card-detail">
+                        {% if room.price_per_10min is not none %}
+                            💳 {{ room.price_per_10min|int }} ₽ / 10 мин
+                        {% else %}
+                            💳 Бесплатно
+                        {% endif %}
+                    </span>
+                    {% endif %}
                 </div>
             </div>
         </div>

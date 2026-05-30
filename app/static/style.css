@@ -226,7 +226,7 @@ hr { margin: 1.5rem 0; border: none; border-top: 1px solid var(--border); }
     font: inherit;
     font-weight: 600;
 }
-.add-link:hover, .submit-btn:hover { background: var(--accent-h); }
+.add-link:hover, .submit-btn:hover { background: var(--accent-h); color: #fff; }
 .cancel-link {
     background: var(--subtle);
     color: var(--muted);
@@ -623,6 +623,15 @@ details[open] > .filter-toggle::after { transform: rotate(-180deg); }
     margin-top: .8rem;
     padding-top: .6rem;
     border-top: 1px solid var(--border);
+}
+
+/* ── Payment confirm ─────────────────────────────────────────────── */
+.payment-total {
+    font-size: 2.4rem;
+    font-weight: 700;
+    font-family: Georgia, serif;
+    color: var(--accent);
+    margin: 0 0 1.2rem;
 }
 
 /* ── Contact admin ───────────────────────────────────────────────── */
