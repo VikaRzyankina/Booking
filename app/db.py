@@ -13,6 +13,7 @@ DB_CONFIG = {
 
 DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 TZ = ZoneInfo('Europe/Moscow')
+RATING_MIN_VOTES = 5
 
 
 def get_db_connection():

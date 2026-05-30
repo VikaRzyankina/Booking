@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Список зданий</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='reviews.css') }}">
 </head>
 <body>
     <h1>Список зданий</h1>
@@ -81,6 +82,13 @@
             </div>
             <div class="card-content">
                 <h3 class="card-title"><a href="{{ room_url }}">{{ building.city }}, {{ building.street }}</a></h3>
+                {% set br = building_ratings.get(building.id) %}
+                {% if br is not none %}
+                <div class="average-rating" style="margin:.25rem 0 .5rem">
+                    <span class="stars-display" style="--rating-width: {{ (br * 10)|round(1) }}%"></span>
+                    <span class="average-value">{{ br }} / 10</span>
+                </div>
+                {% endif %}
                 <p class="card-description">{{ building.description or '—' }}</p>
                 {% if wh %}
                 <table class="hours-table" style="margin:.75rem 0 0;font-size:.82rem">

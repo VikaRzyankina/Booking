@@ -4,7 +4,7 @@ from urllib.parse import urlencode
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, session
 
 from app.assets_manager import save_photo, validate_photo
-from app.db import get_db_cursor, DAYS, TZ
+from app.db import get_db_cursor, DAYS, TZ, RATING_MIN_VOTES
 from app.permissions import (check_permission, require_permission, login_required, grant_permission,
                              check_granting, revoke_permission, PERMISSION_LABELS,
                              VIEW, CREATE_ROOM, MANAGE_ROOM, MANAGE_BOOKING_REQUESTS, REQUEST_BOOKING)
@@ -148,6 +148,30 @@ def browse(building_id):
         cur.execute("SELECT id, name FROM amenities ORDER BY name")
         all_amenities = cur.fetchall()
 
+        room_ids = [r['id'] for r in rooms]
+        ratings_map = {}
+        if room_ids:
+            cur.execute("""
+                WITH global_avg AS (
+                    SELECT COALESCE(AVG(rating), 0) AS c FROM reviews
+                ),
+                room_stats AS (
+                    SELECT room_id, COUNT(*) AS v, AVG(rating) AS r_avg
+                    FROM reviews
+                    WHERE room_id = ANY(%s)
+                    GROUP BY room_id
+                )
+                SELECT
+                    rs.room_id,
+                    ROUND((
+                        (rs.v::float / (rs.v + %s)) * rs.r_avg +
+                        (%s::float / (rs.v + %s)) * ga.c
+                    )::numeric, 1) AS wr
+                FROM room_stats rs, global_avg ga
+            """, (room_ids, RATING_MIN_VOTES, RATING_MIN_VOTES, RATING_MIN_VOTES))
+            for row in cur.fetchall():
+                ratings_map[row['room_id']] = float(row['wr'])
+
     working_hours = get_working_hours(building_id)
 
     time_qs_params = {k: v for k, v in {
@@ -161,6 +185,7 @@ def browse(building_id):
         'room/browse.html',
         building=building,
         rooms=rooms,
+        ratings_map=ratings_map,
         working_hours=working_hours,
         days=DAYS,
         all_amenities=all_amenities,
@@ -490,9 +515,23 @@ def view_room(id):
             else:
                 other_reviews.append(review)
 
-        cur.execute("SELECT AVG(rating) as avg_rating FROM reviews WHERE room_id = %s", (id,))
-        avg_row = cur.fetchone()
-        average_rating = round(avg_row['avg_rating'], 1) if avg_row['avg_rating'] else None
+        cur.execute("""
+            SELECT
+                COUNT(*) as v,
+                AVG(rating) as r_avg,
+                (SELECT COALESCE(AVG(rating), 0) FROM reviews) as c
+            FROM reviews WHERE room_id = %s
+        """, (id,))
+        stat = cur.fetchone()
+        if stat['v'] > 0:
+            m = RATING_MIN_VOTES
+            average_rating = round(
+                (stat['v'] / (stat['v'] + m)) * float(stat['r_avg']) +
+                (m / (stat['v'] + m)) * float(stat['c']),
+                1
+            )
+        else:
+            average_rating = None
 
         edit_review = request.args.get('edit_review') == '1' and user_review is not None
 

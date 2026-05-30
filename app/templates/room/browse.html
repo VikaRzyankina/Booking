@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Комнаты здания {{ building.city }}, {{ building.street }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='reviews.css') }}">
 </head>
 <body>
     <h1>Комнаты здания: {{ building.city }}, {{ building.street }}</h1>
@@ -126,6 +127,13 @@
             </div>
             <div class="card-content">
                 <h3 class="card-title"><a href="{{ view_url }}">{{ room.name }}</a></h3>
+                {% set rr = ratings_map.get(room.id) %}
+                {% if rr is not none %}
+                <div class="average-rating" style="margin:.25rem 0 .5rem">
+                    <span class="stars-display" style="--rating-width: {{ (rr * 10)|round(1) }}%"></span>
+                    <span class="average-value">{{ rr }} / 10</span>
+                </div>
+                {% endif %}
                 <div class="status-badge {% if room.is_available_for_booking %}status-positive{% else %}status-negative{% endif %}">
                     {{ "Доступна" if room.is_available_for_booking else "Недоступна" }}
                 </div>

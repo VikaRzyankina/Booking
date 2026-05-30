@@ -4,7 +4,7 @@ from urllib.parse import urlencode
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, abort
 
 from app.assets_manager import save_photo, validate_photo
-from app.db import get_db_cursor, DAYS
+from app.db import get_db_cursor, DAYS, RATING_MIN_VOTES
 from app.permissions import (require_permission, login_required, grant_permission, check_granting,
                              revoke_permission, PERMISSION_LABELS, VIEW, CREATE_BUILDING,
                              MANAGE_BUILDING, CREATE_ROOM, MANAGE_BOOKING_REQUESTS)
@@ -153,6 +153,7 @@ def browse():
 
         building_ids = [b['id'] for b in buildings]
         working_hours_map = {}
+        building_ratings = {}
         if building_ids:
             cur.execute("""
                 SELECT building_id, day_of_week, open_time, close_time, is_closed
@@ -169,6 +170,31 @@ def browse():
                     'is_closed': row['is_closed']
                 }
 
+            cur.execute("""
+                WITH global_avg AS (
+                    SELECT COALESCE(AVG(rating), 0) AS c FROM reviews
+                ),
+                room_stats AS (
+                    SELECT rv.room_id, COUNT(*) AS v, AVG(rv.rating) AS r_avg, r.building_id
+                    FROM reviews rv
+                    JOIN rooms r ON r.id = rv.room_id
+                    WHERE r.building_id = ANY(%s)
+                    GROUP BY rv.room_id, r.building_id
+                ),
+                room_weighted AS (
+                    SELECT
+                        rs.building_id,
+                        (rs.v::float / (rs.v + %s)) * rs.r_avg +
+                        (%s::float / (rs.v + %s)) * ga.c AS wr
+                    FROM room_stats rs, global_avg ga
+                )
+                SELECT building_id, ROUND(AVG(wr)::numeric, 1) AS building_rating
+                FROM room_weighted
+                GROUP BY building_id
+            """, (building_ids, RATING_MIN_VOTES, RATING_MIN_VOTES, RATING_MIN_VOTES))
+            for row in cur.fetchall():
+                building_ratings[row['building_id']] = float(row['building_rating'])
+
     time_qs_params = {k: v for k, v in {
         'date': filter_date_str,
         'time_from': filter_time_from,
@@ -182,6 +208,7 @@ def browse():
         'building/browse.html',
         buildings=buildings,
         working_hours_map=working_hours_map,
+        building_ratings=building_ratings,
         days=DAYS,
         filter_city=filter_city or '',
         filter_street=filter_street or '',
