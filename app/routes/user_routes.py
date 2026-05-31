@@ -1,7 +1,20 @@
+import re
+
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from app.db import get_db_cursor
+
+_LOGIN_RE = re.compile(r'^[a-zA-Z_0-9.\-]+$')
+_PHONE_RE = re.compile(r'^(\+7|8)[\s\-]?\(?\d{3}\)?[\s\-]?\d{3}[\s\-]?\d{2}[\s\-]?\d{2}$')
+
+
+def _valid_login(login: str) -> bool:
+    return bool(_LOGIN_RE.match(login))
+
+
+def _valid_phone(phone: str) -> bool:
+    return bool(_PHONE_RE.match(phone))
 
 user_bp = Blueprint('user', __name__, url_prefix='/')
 
@@ -46,6 +59,14 @@ def register():
 
         if not all([login, password, full_name, phone]):
             flash('Все поля обязательны для заполнения')
+            return render_template('user/register.html')
+
+        if not _valid_login(login):
+            flash('Логин может содержать только латинские буквы, цифры и символы _ . -')
+            return render_template('user/register.html')
+
+        if not _valid_phone(phone):
+            flash('Телефон должен быть в формате +7 (999) 000-00-00 или 8 999 000-00-00')
             return render_template('user/register.html')
 
         password_hash = generate_password_hash(password)
@@ -109,6 +130,10 @@ def settings():
         confirm = request.form.get('confirm_password', '')
         full_name = request.form.get('full_name', '').strip()
         phone = request.form.get('phone', '').strip()
+
+        if phone and not _valid_phone(phone):
+            flash('Телефон должен быть в формате +7 (999) 000-00-00 или 8 999 000-00-00')
+            return render_template('user/settings.html', full_name=user['full_name'], phone=user['phone'])
 
         password_hash = user['password_hash']
         if new_pass:
