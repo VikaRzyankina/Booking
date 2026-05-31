@@ -4,15 +4,6 @@ from db import get_db_cursor
 from urllib.parse import urlparse
 from flask import session, flash, redirect, url_for, abort, request
 
-
-def _back_url():
-    ref = request.referrer
-    if ref and ref.startswith('/'):
-        return ref
-    if ref and urlparse(ref).netloc == urlparse(request.host_url).netloc:
-        return ref
-    return url_for('building.browse')
-
 VIEW = 'VIEW'
 CREATE_BUILDING = 'CREATE_BUILDING'
 MANAGE_BUILDING = 'MANAGE_BUILDING'
@@ -27,14 +18,6 @@ ALL_PERMISSIONS = [
 
 PERMISSION_HIERARCHY = [CREATE_BUILDING, MANAGE_BUILDING, CREATE_ROOM, MANAGE_ROOM, MANAGE_BOOKING_REQUESTS]
 
-
-def _higher_permissions(permission: str) -> list:
-    if permission not in PERMISSION_HIERARCHY:
-        return []
-    idx = PERMISSION_HIERARCHY.index(permission)
-    return PERMISSION_HIERARCHY[:idx]
-
-
 PERMISSION_LABELS = {
     VIEW: 'Просмотр',
     CREATE_BUILDING: 'Создание зданий',
@@ -44,6 +27,22 @@ PERMISSION_LABELS = {
     MANAGE_BOOKING_REQUESTS: 'Управление бронированиями',
     REQUEST_BOOKING: 'Бронирование',
 }
+
+
+def _higher_permissions(permission: str) -> list:
+    if permission not in PERMISSION_HIERARCHY:
+        return []
+    idx = PERMISSION_HIERARCHY.index(permission)
+    return PERMISSION_HIERARCHY[:idx]
+
+
+def _back_url():
+    ref = request.referrer
+    if ref and ref.startswith('/'):
+        return ref
+    if ref and urlparse(ref).netloc == urlparse(request.host_url).netloc:
+        return ref
+    return url_for('building.browse')
 
 
 def check_permission(user_id: int, permission: str, building_id: int = None, room_id: int = None) -> bool:

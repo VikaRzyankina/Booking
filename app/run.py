@@ -59,7 +59,7 @@ def initialize_default_users():
             """, (password_hash,))
         else:
             if admin_row['login'] != 'admin':
-                raise ValueError(f"User with id=1 exists but login is '{admin_row['login']}', expected 'admin'")
+                raise ValueError(f"Пользователь с id=1 существует, но его логин '{admin_row['login']}', ожидался 'admin'")
         for perm in ALL_PERMISSIONS:
             cur.execute("""
                 INSERT INTO user_permissions (user_id, granter_id, permission, granting, building_id, room_id)
@@ -81,9 +81,9 @@ def initialize_default_users():
             """, (password_hash,))
         else:
             if guest_row['login'] != 'guest':
-                raise ValueError(f"User with id=2 exists but login is '{guest_row['login']}', expected 'guest'")
+                raise ValueError(f"Пользователь с id=2 существует, но его логин '{guest_row['login']}', ожидался 'guest'")
     grant_permission(1, 2, "VIEW")
 
 if __name__ == '__main__':
     initialize_default_users()
-    app.run(debug=True)
+    app.run(debug=config.FLASK_DEBUG)

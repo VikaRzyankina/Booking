@@ -1,0 +1,43 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-booking}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-booking}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-5000}:5000"
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-booking}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-changeme}
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
+      PAYMENT_ENABLED: ${PAYMENT_ENABLED:-true}
+      PAYMENT_REFUND_TIMEOUT_HOURS: ${PAYMENT_REFUND_TIMEOUT_HOURS:-24}
+      RATING_MIN_VOTES: ${RATING_MIN_VOTES:-5}
+      TZ_NAME: ${TZ_NAME:-Europe/Moscow}
+      FLASK_DEBUG: ${FLASK_DEBUG:-false}
+    volumes:
+      - uploads:/app/static/assets/rooms
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  uploads:
