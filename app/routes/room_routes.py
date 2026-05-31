@@ -52,6 +52,15 @@ def _resolve_amenity_ids(cur, selected_ids, new_names):
     return ids
 
 
+def _cleanup_orphan_amenities(cur):
+    cur.execute("""
+        DELETE FROM amenities a
+        WHERE NOT EXISTS (
+            SELECT 1 FROM room_amenities ra WHERE ra.amenity_id = a.id
+        )
+    """)
+
+
 @room_bp.route('/buildings/<int:building_id>/browse')
 def browse(building_id):
     user_id = session.get('user_id', 2)
@@ -400,11 +409,13 @@ def edit_room(id):
                     ON CONFLICT DO NOTHING
                 """, (id, amenity_id))
 
+            _cleanup_orphan_amenities(cur)
+
         if photo and photo.filename:
             save_photo(photo, 'rooms', f'{id}.jpeg')
 
         flash('Комната успешно обновлена.', 'success')
-        return redirect(url_for('room.browse', building_id=room['building_id']))
+        return redirect(url_for('room.view_room', id=id))
     except Exception as e:
         if 'unique constraint' in str(e).lower() or 'duplicate' in str(e).lower():
             flash('Комната с таким названием уже существует в этом здании.', 'error')
@@ -496,6 +507,7 @@ def delete_room(id):
 
     with get_db_cursor(commit=True) as cur:
         cur.execute("DELETE FROM rooms WHERE id = %s", (id,))
+        _cleanup_orphan_amenities(cur)
 
     flash('Комната удалена.', 'success')
     return redirect(url_for('room.browse', building_id=building_id))

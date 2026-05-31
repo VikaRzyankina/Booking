@@ -73,18 +73,27 @@
         <div class="form-group">
             <label>Удобства:</label>
             {% if all_amenities %}
-            <div class="checkboxes-wrap">
-                {% for amenity in all_amenities %}
-                <label class="checkbox-label">
-                    <input type="checkbox" name="amenity_ids" value="{{ amenity.id }}"
-                        {% if amenity.id in room_amenity_ids %}checked{% endif %}>
-                    <span>{{ amenity.name }}</span>
-                </label>
-                {% endfor %}
-            </div>
+            {% set selected_count = room_amenity_ids | length %}
+            <details class="amenity-menu">
+                <summary class="amenity-menu-toggle">
+                    <span>Выбрать удобства</span>
+                    <span class="amenity-menu-count" data-amenity-count>
+                        {% if selected_count %}Выбрано: {{ selected_count }}{% else %}Не выбрано{% endif %}
+                    </span>
+                </summary>
+                <div class="checkbox-list amenity-menu-list">
+                    {% for amenity in all_amenities %}
+                    <label class="checkbox-list-item">
+                        <input type="checkbox" name="amenity_ids" value="{{ amenity.id }}"
+                            {% if amenity.id in room_amenity_ids %}checked{% endif %}>
+                        {{ amenity.name }}
+                    </label>
+                    {% endfor %}
+                </div>
+            </details>
             {% endif %}
             <input type="text" id="new_amenities" name="new_amenities" placeholder="Новые удобства через запятую">
-            <small class="field-hint">Новые удобства будут сохранены в нижнем регистре.</small>
+            <small class="field-hint">Новые удобства будут сохранены в нижнем регистре. Удобства, не оставшиеся ни в одной комнате, удаляются автоматически.</small>
         </div>
 
         <div class="form-actions">
@@ -163,4 +172,19 @@
         {% endif %}
     </section>
     {% endif %}
+
+    <script>
+        (function () {
+            var menu = document.querySelector('.amenity-menu');
+            if (!menu) return;
+            var counter = menu.querySelector('[data-amenity-count]');
+            var boxes = menu.querySelectorAll('input[type=checkbox]');
+            function update() {
+                var n = 0;
+                boxes.forEach(function (b) { if (b.checked) n++; });
+                counter.textContent = n ? 'Выбрано: ' + n : 'Не выбрано';
+            }
+            boxes.forEach(function (b) { b.addEventListener('change', update); });
+        })();
+    </script>
 {% endblock %}
