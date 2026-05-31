@@ -4,8 +4,8 @@ from urllib.parse import urlencode
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, session
 
 from app.assets_manager import save_photo, validate_photo
-from app.db import get_db_cursor, DAYS, RATING_MIN_VOTES
-from app.config import TZ, PAYMENT_ENABLED
+from app.db import get_db_cursor, DAYS
+from app.config import TZ, PAYMENT_ENABLED, RATING_MIN_VOTES
 from app.permissions import (check_permission, require_permission, login_required, grant_permission,
                              check_granting, revoke_permission, PERMISSION_LABELS,
                              VIEW, CREATE_ROOM, MANAGE_BUILDING, MANAGE_ROOM, MANAGE_BOOKING_REQUESTS,

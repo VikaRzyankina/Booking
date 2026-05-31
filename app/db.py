@@ -13,7 +13,6 @@ DB_CONFIG = {
 }
 
 DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-RATING_MIN_VOTES = config.RATING_MIN_VOTES
 
 
 def get_db_connection():
