@@ -135,17 +135,18 @@ def browse(building_id):
         if not building:
             abort(404)
 
+        user_ids = (user_id, 2) if user_id != 2 else (2,)
         cur.execute(f"""
             WITH view_scope AS (
                 SELECT
                     EXISTS (
                         SELECT 1 FROM user_permissions
-                        WHERE user_id = %s AND permission = 'VIEW'
+                        WHERE user_id IN %s AND permission = 'VIEW'
                           AND building_id IS NULL AND room_id IS NULL
                     ) AS has_global,
                     EXISTS (
                         SELECT 1 FROM user_permissions
-                        WHERE user_id = %s AND permission = 'VIEW'
+                        WHERE user_id IN %s AND permission = 'VIEW'
                           AND building_id = %s AND room_id IS NULL
                     ) AS has_building
             )
@@ -157,12 +158,12 @@ def browse(building_id):
                   OR (SELECT has_building FROM view_scope)
                   OR EXISTS (
                       SELECT 1 FROM user_permissions
-                      WHERE user_id = %s AND permission = 'VIEW'
+                      WHERE user_id IN %s AND permission = 'VIEW'
                         AND building_id = %s AND room_id = r.id
                   )
               ){extra_where}
             ORDER BY r.id
-        """, [user_id, user_id, building_id, building_id, user_id, building_id] + extra_params)
+        """, [user_ids, user_ids, building_id, building_id, user_ids, building_id] + extra_params)
         rooms = cur.fetchall()
 
         cur.execute("SELECT id, name FROM amenities ORDER BY name")

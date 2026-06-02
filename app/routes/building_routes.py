@@ -123,13 +123,14 @@ def browse():
 
     extra_where = (' AND ' + ' AND '.join(extra_conds)) if extra_conds else ''
 
+    user_ids = (user_id, 2) if user_id != 2 else (2,)
     with get_db_cursor() as cur:
         cur.execute(f"""
             WITH global_perm AS (
                 SELECT EXISTS (
                     SELECT 1
                     FROM user_permissions
-                    WHERE user_id = %s
+                    WHERE user_id IN %s
                       AND permission = 'VIEW'
                       AND building_id IS NULL
                       AND room_id IS NULL
@@ -142,14 +143,14 @@ def browse():
                 OR id IN (
                     SELECT building_id
                     FROM user_permissions
-                    WHERE user_id = %s
+                    WHERE user_id IN %s
                       AND permission = 'VIEW'
                       AND building_id IS NOT NULL
                       AND room_id IS NULL
                 )
             ){extra_where}
             ORDER BY id
-        """, [user_id, user_id] + extra_params)
+        """, [user_ids, user_ids] + extra_params)
         buildings = cur.fetchall()
 
         building_ids = [b['id'] for b in buildings]
