@@ -7,8 +7,8 @@ from app.assets_manager import save_photo, validate_photo
 from app.db import get_db_cursor, DAYS
 from app.config import RATING_MIN_VOTES
 from app.permissions import (check_permission, require_permission, login_required, grant_permission,
-                             check_granting, revoke_permission, PERMISSION_LABELS, VIEW,
-                             CREATE_BUILDING, MANAGE_BUILDING, CREATE_ROOM, MANAGE_BOOKING_REQUESTS)
+                             check_granting, revoke_permission, PERMISSION_LABELS, ALL_PERMISSIONS,
+                             VIEW, CREATE_BUILDING, MANAGE_BUILDING, CREATE_ROOM, MANAGE_BOOKING_REQUESTS)
 
 building_bp = Blueprint('building', __name__, url_prefix='/')
 
@@ -204,8 +204,17 @@ def browse():
     }.items() if v}
     time_qs = ('?' + urlencode(time_qs_params)) if time_qs_params else ''
 
-    can_grant_view = bool(user_id != 2 and check_granting(user_id, VIEW))
-    can_grant_create_building = bool(user_id != 2 and check_granting(user_id, CREATE_BUILDING))
+    can_manage_global_perms = False
+    if user_id != 2:
+        with get_db_cursor() as cur:
+            cur.execute("""
+                SELECT EXISTS (
+                    SELECT 1 FROM user_permissions
+                    WHERE user_id = %s AND granting = TRUE
+                      AND building_id IS NULL AND room_id IS NULL
+                )
+            """, (user_id,))
+            can_manage_global_perms = cur.fetchone()[0]
     can_create_building = check_permission(user_id, CREATE_BUILDING)
 
     return render_template(
@@ -220,8 +229,7 @@ def browse():
         filter_time_from=filter_time_from or '',
         filter_time_to=filter_time_to or '',
         time_qs=time_qs,
-        can_grant_view=can_grant_view,
-        can_grant_create_building=can_grant_create_building,
+        can_manage_global_perms=can_manage_global_perms,
         can_create_building=can_create_building,
     )
 
@@ -330,68 +338,44 @@ def edit_building(id):
     return render_form()
 
 
-@building_bp.route('/grant-view', methods=['POST'])
+@building_bp.route('/grant-global', methods=['POST'])
 @login_required
-def grant_global_view():
-    user_id = session.get('user_id')
-
-    login = request.form.get('login', '').strip()
-    if not login:
-        flash('Укажите логин пользователя.', 'error')
-        return redirect(url_for('building.browse'))
-
-    with get_db_cursor() as cur:
-        cur.execute("SELECT id FROM users WHERE login = %s", (login,))
-        target = cur.fetchone()
-
-    if not target:
-        flash(f'Пользователь {login} не найден.', 'error')
-        return redirect(url_for('building.browse'))
-
-    success = grant_permission(user_id, target['id'], VIEW)
-    if success:
-        flash(f'Право на просмотр зданий выдано пользователю {login}.', 'success')
-    else:
-        flash('Не удалось выдать право. Возможно, оно уже выдано или у вас нет прав на это действие.', 'error')
-    return redirect(url_for('building.view_permissions'))
-
-
-@building_bp.route('/grant-create-building', methods=['POST'])
-@login_required
-def grant_global_create_building():
+def grant_global_permission():
     user_id = session.get('user_id')
     login = request.form.get('login', '').strip()
-    if not login:
-        flash('Укажите логин пользователя.', 'error')
+    permission = request.form.get('permission', '').strip()
+    if not login or permission not in ALL_PERMISSIONS:
+        flash('Некорректные данные.', 'error')
         return redirect(url_for('building.view_permissions'))
     with get_db_cursor() as cur:
         cur.execute("SELECT id FROM users WHERE login = %s", (login,))
         target = cur.fetchone()
     if not target:
-        flash(f'Пользователь {login} не найден.', 'error')
+        flash(f'Пользователь «{login}» не найден.', 'error')
         return redirect(url_for('building.view_permissions'))
-    success = grant_permission(user_id, target['id'], CREATE_BUILDING)
+    success = grant_permission(user_id, target['id'], permission)
     if success:
-        flash(f'Право на создание зданий выдано пользователю {login}.', 'success')
+        flash(f'Право «{PERMISSION_LABELS[permission]}» выдано пользователю {login}.', 'success')
     else:
         flash('Не удалось выдать право. Возможно, оно уже выдано или у вас нет прав на это действие.', 'error')
     return redirect(url_for('building.view_permissions'))
 
 
-@building_bp.route('/revoke-create-building', methods=['POST'])
+@building_bp.route('/revoke-global', methods=['POST'])
 @login_required
-def revoke_global_create_building():
+def revoke_global_permission():
     user_id = session.get('user_id')
     target_user_id = request.form.get('target_user_id', type=int)
-    if not target_user_id:
+    permission = request.form.get('permission', '').strip()
+    if not target_user_id or permission not in ALL_PERMISSIONS:
         flash('Некорректные данные.', 'error')
         return redirect(url_for('building.view_permissions'))
     if target_user_id == user_id:
         flash('Нельзя изъять право у самого себя.', 'error')
         return redirect(url_for('building.view_permissions'))
-    success = revoke_permission(user_id, target_user_id, CREATE_BUILDING)
+    success = revoke_permission(user_id, target_user_id, permission)
     if success:
-        flash('Право на создание зданий изъято.', 'success')
+        flash('Право изъято.', 'success')
     else:
         flash('Не удалось изъять право.', 'error')
     return redirect(url_for('building.view_permissions'))
@@ -439,56 +423,25 @@ def grant_building_permission(id):
 @login_required
 def view_permissions():
     user_id = session.get('user_id')
-    can_grant_view = check_granting(user_id, VIEW)
-    can_grant_create_building = check_granting(user_id, CREATE_BUILDING)
-    if not can_grant_view and not can_grant_create_building:
+    grantable = [(p, PERMISSION_LABELS[p]) for p in ALL_PERMISSIONS if check_granting(user_id, p)]
+    if not grantable:
         flash('У вас нет прав для просмотра этого раздела.', 'error')
         return redirect(url_for('building.browse'))
-    view_holders = []
-    create_building_holders = []
+    grantable_perms = tuple(p for p, _ in grantable)
     with get_db_cursor() as cur:
-        if can_grant_view:
-            cur.execute("""
-                SELECT u.id as user_id, u.login, u.full_name, up.granting
-                FROM user_permissions up
-                JOIN users u ON u.id = up.user_id
-                WHERE up.permission = 'VIEW' AND up.building_id IS NULL AND up.room_id IS NULL
-                ORDER BY u.login
-            """)
-            view_holders = cur.fetchall()
-        if can_grant_create_building:
-            cur.execute("""
-                SELECT u.id as user_id, u.login, u.full_name, up.granting
-                FROM user_permissions up
-                JOIN users u ON u.id = up.user_id
-                WHERE up.permission = 'CREATE_BUILDING' AND up.building_id IS NULL AND up.room_id IS NULL
-                ORDER BY u.login
-            """)
-            create_building_holders = cur.fetchall()
+        cur.execute("""
+            SELECT u.id as user_id, u.login, u.full_name, up.permission, up.granting
+            FROM user_permissions up
+            JOIN users u ON u.id = up.user_id
+            WHERE up.building_id IS NULL AND up.room_id IS NULL
+              AND up.permission IN %s
+            ORDER BY u.login, up.permission
+        """, (grantable_perms,))
+        holders = cur.fetchall()
     return render_template('building/view_permissions.html',
-                           view_holders=view_holders,
-                           create_building_holders=create_building_holders,
-                           can_grant_view=can_grant_view,
-                           can_grant_create_building=can_grant_create_building)
-
-
-@building_bp.route('/revoke-view', methods=['POST'])
-@login_required
-def revoke_global_view():
-    user_id = session.get('user_id')
-    target_user_id = request.form.get('target_user_id', type=int)
-    if not target_user_id:
-        flash('Некорректные данные.', 'error')
-        return redirect(url_for('building.view_permissions'))
-    if target_user_id == user_id:
-        flash('Нельзя изъять право у самого себя.', 'error')
-        return redirect(url_for('building.view_permissions'))
-    success = revoke_permission(user_id, target_user_id, VIEW)
-    if success:
-        flash('Право на просмотр зданий изъято.', 'success')
-    else:
-        flash('Не удалось изъять право.', 'error')
-    return redirect(url_for('building.view_permissions'))
+                           holders=holders,
+                           grantable=grantable,
+                           permission_labels=PERMISSION_LABELS)
 
 
 @building_bp.route('/buildings/<int:id>/revoke', methods=['POST'])

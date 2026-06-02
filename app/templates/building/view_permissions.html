@@ -7,105 +7,63 @@
         <a href="{{ url_for('building.browse') }}" class="back-link">← Назад к зданиям</a>
     </div>
 
-    <div class="settings-cols" style="margin-top:1.5rem;align-items:flex-start">
-
-        {% if can_grant_view %}
-        <div class="settings-col">
-            <h2>Просмотр зданий</h2>
-
-            <form method="post" action="{{ url_for('building.grant_global_view') }}" class="generic-form" style="margin-top:.75rem">
-                <div class="form-group">
-                    <label for="grant-view-login">Логин пользователя:</label>
-                    <input type="text" id="grant-view-login" name="login" placeholder="Введите логин"
-                           required autocomplete="off">
-                </div>
-                <div class="form-actions">
-                    <button type="submit" class="submit-btn">Выдать</button>
-                </div>
-            </form>
-
-            {% if view_holders %}
-            <table class="hours-table" style="width:100%;margin-top:1.25rem">
-                <thead>
-                    <tr>
-                        <th style="text-align:left;padding:.4rem .6rem">Логин</th>
-                        <th style="text-align:left;padding:.4rem .6rem">Имя</th>
-                        <th style="text-align:center;padding:.4rem .6rem">Выдаёт</th>
-                        <th style="padding:.4rem .6rem"></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for h in view_holders %}
-                    <tr>
-                        <td style="padding:.4rem .6rem">{{ h.login }}</td>
-                        <td style="padding:.4rem .6rem">{{ h.full_name }}</td>
-                        <td style="text-align:center;padding:.4rem .6rem">
-                            {% if h.granting %}✓{% else %}—{% endif %}
-                        </td>
-                        <td style="padding:.4rem .6rem">
-                            <form method="post" action="{{ url_for('building.revoke_global_view') }}" style="margin:0">
-                                <input type="hidden" name="target_user_id" value="{{ h.user_id }}">
-                                <button type="submit" class="danger-btn">Изъять</button>
-                            </form>
-                        </td>
-                    </tr>
+    <section style="margin-top:1.5rem">
+        <h2>Выдать право</h2>
+        <form method="post" action="{{ url_for('building.grant_global_permission') }}" class="generic-form" style="margin-top:.75rem">
+            <div class="form-group">
+                <label for="grant-login">Логин пользователя:</label>
+                <input type="text" id="grant-login" name="login" placeholder="Введите логин"
+                       required autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="grant-permission">Право:</label>
+                <select id="grant-permission" name="permission">
+                    {% for value, label in grantable %}
+                    <option value="{{ value }}">{{ label }}</option>
                     {% endfor %}
-                </tbody>
-            </table>
-            {% else %}
-            <p style="color:var(--muted);margin-top:1rem">Никто ещё не имеет этого права.</p>
-            {% endif %}
-        </div>
+                </select>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="submit-btn">Выдать</button>
+            </div>
+        </form>
+    </section>
+
+    <section style="margin-top:2rem">
+        <h2>Текущие держатели прав</h2>
+        {% if holders %}
+        <table class="hours-table" style="width:100%;margin-top:.75rem">
+            <thead>
+                <tr>
+                    <th style="text-align:left;padding:.4rem .6rem">Логин</th>
+                    <th style="text-align:left;padding:.4rem .6rem">Имя</th>
+                    <th style="text-align:left;padding:.4rem .6rem">Право</th>
+                    <th style="text-align:center;padding:.4rem .6rem">Выдаёт</th>
+                    <th style="padding:.4rem .6rem"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for h in holders %}
+                <tr>
+                    <td style="padding:.4rem .6rem">{{ h.login }}</td>
+                    <td style="padding:.4rem .6rem">{{ h.full_name }}</td>
+                    <td style="padding:.4rem .6rem">{{ permission_labels[h.permission] }}</td>
+                    <td style="text-align:center;padding:.4rem .6rem">
+                        {% if h.granting %}✓{% else %}—{% endif %}
+                    </td>
+                    <td style="padding:.4rem .6rem">
+                        <form method="post" action="{{ url_for('building.revoke_global_permission') }}" style="margin:0">
+                            <input type="hidden" name="target_user_id" value="{{ h.user_id }}">
+                            <input type="hidden" name="permission" value="{{ h.permission }}">
+                            <button type="submit" class="danger-btn">Изъять</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="color:var(--muted);margin-top:.75rem">Никто ещё не имеет глобальных прав.</p>
         {% endif %}
-
-        {% if can_grant_create_building %}
-        <div class="settings-col">
-            <h2>Создание зданий</h2>
-
-            <form method="post" action="{{ url_for('building.grant_global_create_building') }}" class="generic-form" style="margin-top:.75rem">
-                <div class="form-group">
-                    <label for="grant-cb-login">Логин пользователя:</label>
-                    <input type="text" id="grant-cb-login" name="login" placeholder="Введите логин"
-                           required autocomplete="off">
-                </div>
-                <div class="form-actions">
-                    <button type="submit" class="submit-btn">Выдать</button>
-                </div>
-            </form>
-
-            {% if create_building_holders %}
-            <table class="hours-table" style="width:100%;margin-top:1.25rem">
-                <thead>
-                    <tr>
-                        <th style="text-align:left;padding:.4rem .6rem">Логин</th>
-                        <th style="text-align:left;padding:.4rem .6rem">Имя</th>
-                        <th style="text-align:center;padding:.4rem .6rem">Выдаёт</th>
-                        <th style="padding:.4rem .6rem"></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for h in create_building_holders %}
-                    <tr>
-                        <td style="padding:.4rem .6rem">{{ h.login }}</td>
-                        <td style="padding:.4rem .6rem">{{ h.full_name }}</td>
-                        <td style="text-align:center;padding:.4rem .6rem">
-                            {% if h.granting %}✓{% else %}—{% endif %}
-                        </td>
-                        <td style="padding:.4rem .6rem">
-                            <form method="post" action="{{ url_for('building.revoke_global_create_building') }}" style="margin:0">
-                                <input type="hidden" name="target_user_id" value="{{ h.user_id }}">
-                                <button type="submit" class="danger-btn">Изъять</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% else %}
-            <p style="color:var(--muted);margin-top:1rem">Никто ещё не имеет этого права.</p>
-            {% endif %}
-        </div>
-        {% endif %}
-
-    </div>
+    </section>
 {% endblock %}
