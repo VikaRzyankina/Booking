@@ -2,7 +2,7 @@ from functools import wraps
 
 from db import get_db_cursor
 from urllib.parse import urlparse
-from flask import session, flash, redirect, url_for, abort, request
+from flask import session, flash, redirect, url_for, request
 
 VIEW = 'VIEW'
 CREATE_BUILDING = 'CREATE_BUILDING'
@@ -46,17 +46,18 @@ def _back_url():
 
 
 def check_permission(user_id: int, permission: str, building_id: int = None, room_id: int = None) -> bool:
+    user_ids = (user_id, 2) if user_id != 2 else (2,)
     with get_db_cursor() as cur:
         cur.execute("""
             SELECT EXISTS (
                 SELECT 1
                 FROM user_permissions up
-                WHERE up.user_id = %s
+                WHERE up.user_id IN %s
                   AND up.permission = %s
                   AND (up.building_id IS NULL OR up.building_id = %s)
                   AND (up.room_id IS NULL OR up.room_id = %s)
             )
-        """, (user_id, permission, building_id, room_id))
+        """, (user_ids, permission, building_id, room_id))
         return cur.fetchone()[0]
 
 
@@ -242,8 +243,9 @@ def require_permission(permission, building_id_arg=None, room_id_arg=None):
             if not check_permission(user_id, permission, building_id, room_id):
                 if not logged_in_id:
                     flash('Необходима авторизация.', 'error')
-                    return redirect(_back_url())
-                abort(403)
+                else:
+                    flash('У вас нет прав для выполнения этого действия.', 'error')
+                return redirect(_back_url())
             return f(*args, **kwargs)
         return wrapper
     return decorator

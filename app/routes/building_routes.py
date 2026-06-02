@@ -396,7 +396,8 @@ def grant_building_permission(id):
 def view_permissions():
     user_id = session.get('user_id')
     if not check_granting(user_id, VIEW):
-        abort(403)
+        flash('У вас нет прав для просмотра этого раздела.', 'error')
+        return redirect(url_for('building.browse'))
     with get_db_cursor() as cur:
         cur.execute("""
             SELECT u.id as user_id, u.login, u.full_name, up.granting

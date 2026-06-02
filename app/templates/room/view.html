@@ -78,6 +78,9 @@
                 {% if room.is_available_for_booking %}
                 <a href="{{ url_for('booking.booking_request', room_id=room.id, date=_date, time_from=_tf, time_to=_tt) }}" class="add-link">
                     Забронировать
+                    {% if room.price_per_10min %}
+                        {{ room.price_per_10min }}₽ / 10 мин.
+                    {% endif %}
                 </a>
                 {% endif %}
             </div>

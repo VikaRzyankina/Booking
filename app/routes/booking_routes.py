@@ -1,7 +1,7 @@
 import calendar
 from datetime import datetime, timedelta
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, abort
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 
 from app.db import get_db_cursor, DAYS
 from app.config import TZ, PAYMENT_ENABLED, PAYMENT_REFUND_TIMEOUT_HOURS
@@ -281,7 +281,8 @@ def booking_request(room_id):
         return redirect(url_for('building.browse'))
 
     if not check_permission(user_id, REQUEST_BOOKING, building_id=building_id, room_id=room_id):
-        abort(403)
+        flash('У вас нет прав для бронирования этой комнаты.', 'error')
+        return redirect(url_for('building.browse'))
 
     if request.method == 'POST':
         try:

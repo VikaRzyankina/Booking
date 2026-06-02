@@ -65,7 +65,8 @@ def _cleanup_orphan_amenities(cur):
 def browse(building_id):
     user_id = session.get('user_id', 2)
     if not check_permission(user_id, VIEW, building_id=building_id):
-        abort(403)
+        flash('У вас нет доступа к этому зданию.', 'error')
+        return redirect(url_for('building.browse'))
 
     filter_date_str = request.args.get('date', '').strip() or None
     filter_time_from = request.args.get('time_from', '').strip() or None
@@ -323,7 +324,8 @@ def edit_room(id):
             abort(404)
 
         if not check_permission(user_id, MANAGE_ROOM, building_id=room['building_id'], room_id=id):
-            abort(403)
+            flash('У вас нет прав для редактирования этой комнаты.', 'error')
+            return redirect(url_for('room.browse', building_id=room['building_id']))
 
         grantable_permissions = [
             {'value': p, 'label': l}
@@ -503,7 +505,8 @@ def delete_room(id):
         building_id = room['building_id']
 
     if not check_permission(user_id, MANAGE_ROOM, building_id=building_id, room_id=id):
-        abort(403)
+        flash('У вас нет прав для удаления этой комнаты.', 'error')
+        return redirect(url_for('room.browse', building_id=building_id))
 
     with get_db_cursor(commit=True) as cur:
         cur.execute("DELETE FROM rooms WHERE id = %s", (id,))
