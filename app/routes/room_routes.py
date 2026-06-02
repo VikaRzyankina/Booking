@@ -484,6 +484,9 @@ def revoke_room_permission(id):
     if not target_user_id or permission not in allowed:
         flash('Некорректные данные.', 'error')
         return redirect(url_for('room.edit_room', id=id))
+    if target_user_id == user_id:
+        flash('Нельзя изъять право у самого себя.', 'error')
+        return redirect(url_for('room.edit_room', id=id))
     success = revoke_permission(user_id, target_user_id, permission, building_id=building_id, room_id=id)
     if success:
         flash('Право изъято.', 'success')

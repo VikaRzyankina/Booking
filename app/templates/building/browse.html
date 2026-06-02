@@ -6,8 +6,8 @@
 {% block body %}
     <h1>Список зданий</h1>
     <div class="nav-links">
-        {% if can_grant_view %}
-        <a href="{{ url_for('building.view_permissions') }}" class="add-link">Управление правами просмотра</a>
+        {% if can_grant_view or can_grant_create_building %}
+        <a href="{{ url_for('building.view_permissions') }}" class="add-link">Управление глобальными правами</a>
         {% endif %}
         {% if can_create_building %}
         <a href="{{ url_for('building.new_building') }}" class="add-link">+ Добавить здание</a>
