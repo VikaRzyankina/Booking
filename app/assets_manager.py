@@ -16,7 +16,10 @@ def validate_photo(photo):
         return None
     if not allowed_file(photo.filename):
         return 'Недопустимый формат файла. Разрешены JPEG, PNG, WebP.'
-    if photo.content_length and photo.content_length > MAX_PHOTO_SIZE:
+    photo.stream.seek(0, 2)
+    size = photo.stream.tell()
+    photo.stream.seek(0)
+    if size > MAX_PHOTO_SIZE:
         return f'Файл слишком большой. Максимальный размер: {MAX_PHOTO_SIZE // (1024 * 1024)} МБ.'
     return None
 
