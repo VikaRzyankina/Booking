@@ -33,7 +33,7 @@ services:
       TZ_NAME: ${TZ_NAME:-Europe/Moscow}
       FLASK_DEBUG: ${FLASK_DEBUG:-false}
     volumes:
-      - uploads:/app/static/assets/rooms
+      - uploads:/app/static/assets
     depends_on:
       db:
         condition: service_healthy
